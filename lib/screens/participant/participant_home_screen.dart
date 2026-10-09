@@ -1,95 +1,22 @@
 import 'package:event_hive/core/theme/app_theme.dart';
 import 'package:event_hive/provider/common/category_provider.dart';
+import 'package:event_hive/provider/common/user_provider.dart';
 import 'package:event_hive/provider/participant/event_provider.dart';
 import 'package:event_hive/widgets/common/event_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Main shell of the participant side of the app.
+/// Home tab of the participant side: header, search bar, category chips
+/// and the list of upcoming events.
 ///
-/// It owns the bottom navigation bar and decides which of the three tabs
-/// is visible: Home, My events, Profile. Each tab is its own widget, so
-/// it can be read and changed on its own.
-///
-/// This is a plain [StatefulWidget] because the only state it owns is
-/// the selected tab. Widgets inside the tabs that need providers are
-/// [ConsumerWidget]s themselves.
-class ParticipantHomeScreen extends StatefulWidget {
-  const ParticipantHomeScreen({super.key});
-
-  @override
-  State<ParticipantHomeScreen> createState() => _ParticipantHomeScreenState();
-}
-
-class _ParticipantHomeScreenState extends State<ParticipantHomeScreen> {
-  // ------------------------------------------------------------------
-  // State
-  // ------------------------------------------------------------------
-
-  /// Index of the selected tab: 0 = Home, 1 = My events, 2 = Profile.
-  int _tabIndex = 0;
-
-  // ------------------------------------------------------------------
-  // Build
-  // ------------------------------------------------------------------
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBg,
-
-      // IndexedStack keeps all three tabs alive and only shows one.
-      // Switching tabs therefore does not reset the other tabs (for
-      // example, the typed search text on Home survives a trip to
-      // Profile and back).
-      body: SafeArea(
-        child: IndexedStack(
-          index: _tabIndex,
-          children: const [_HomeTab(), _MyEventsTab(), _ProfileTab()],
-        ),
-      ),
-
-      // ---- Bottom navigation bar ----
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _tabIndex,
-        onTap: (i) => setState(() => _tabIndex = i),
-        // "fixed" keeps labels visible on all tabs, as in the design.
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: kSurface,
-        selectedItemColor: kNavy,
-        unselectedItemColor: kTextSub,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'My events',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ------------------------------------------------------------------
-// Tabs
-// ------------------------------------------------------------------
-
-/// Home tab: header, search bar, category chips and the list of
-/// upcoming events.
+/// The bottom navigation bar is not built here; it belongs to
+/// `ParticipantShell`, which the router puts around this screen.
 ///
 /// The header, search bar and chips keep their height; the event list
 /// takes the remaining space and scrolls on its own.
-class _HomeTab extends StatelessWidget {
-  const _HomeTab();
+class ParticipantHomeScreen extends StatelessWidget {
+  const ParticipantHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -123,38 +50,17 @@ class _HomeTab extends StatelessWidget {
   }
 }
 
-/// My events tab: the participant's registrations.
-/// Placeholder until its screen is built.
-class _MyEventsTab extends StatelessWidget {
-  const _MyEventsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('My events'));
-  }
-}
-
-/// Profile tab: the participant's own details.
-/// Placeholder until its screen is built.
-class _ProfileTab extends StatelessWidget {
-  const _ProfileTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Profile'));
-  }
-}
-
 // ------------------------------------------------------------------
 // Home tab: header
 // ------------------------------------------------------------------
 
-/// Navy card at the top of Home: greeting, user name, notification bell.
+/// Navy card at the top of Home: greeting, the user's name, and the
+/// notification bell.
 ///
-/// Static for now. The name is a placeholder until it is read from the
-/// `users` table, and the bell count is hardcoded because the schema
-/// has no notifications table yet.
-class _HomeHeader extends StatelessWidget {
+/// The name is the logged-in user's `username`, read through
+/// [currentUsernameProvider]. The bell count is hardcoded because the
+/// schema has no notifications table yet.
+class _HomeHeader extends ConsumerWidget {
   const _HomeHeader();
 
   /// Picks the greeting from the phone's local time.
@@ -166,7 +72,20 @@ class _HomeHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Loading shows nothing in the name's place. If the name cannot be
+    // loaded, a generic label keeps the header from looking broken.
+    final name = ref
+        .watch(currentUsernameProvider)
+        .when(
+          data: (username) => username,
+          loading: () => '',
+          error: (e, _) {
+            debugPrint('Failed to load username: $e');
+            return 'Participant';
+          },
+        );
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -177,7 +96,7 @@ class _HomeHeader extends StatelessWidget {
       child: Row(
         children: [
           // Expanded makes the text take all the space the bell leaves,
-          // so a long name wraps instead of overflowing.
+          // so a long name is cut with "..." instead of overflowing.
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,13 +106,23 @@ class _HomeHeader extends StatelessWidget {
                   style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Participant',
-                  style: TextStyle(
-                    fontFamily: 'serif',
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
+                // Fixed height, so the header does not jump in size
+                // while the name is still loading.
+                SizedBox(
+                  height: 32,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'serif',
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -371,8 +300,8 @@ class _CategoryChips extends ConsumerWidget {
 class _EventList extends ConsumerWidget {
   const _EventList();
 
-  /// Thumbnail colors, reused in order. Temporary: replace with real
-  /// images if an image column is ever added to `events`.
+  /// Fallback thumbnail colors for events without an image, reused in
+  /// order.
   static const _accents = [kNavy, kAmber, kTextSub];
 
   @override
@@ -428,6 +357,8 @@ class _EventList extends ConsumerWidget {
           child: ListView.separated(
             // Keeps pull-to-refresh working even with only a few cards.
             physics: const AlwaysScrollableScrollPhysics(),
+            // Room for the card's hover lift and shadow, which a list
+            // would otherwise clip.
             padding: const EdgeInsets.fromLTRB(4, 6, 4, 12),
             itemCount: events.length,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
