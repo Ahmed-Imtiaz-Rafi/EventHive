@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:event_hive/core/theme/app_theme.dart';
 import 'package:event_hive/core/utils/event_date_time_format.dart';
 import 'package:event_hive/model/common/event.dart';
@@ -135,7 +137,8 @@ class _DetailsHeader extends StatelessWidget {
 // Body
 // ------------------------------------------------------------------
 
-/// Scrollable content of the screen: banner, title and info rows.
+/// Scrollable content of the screen: banner, title, info rows,
+/// description and the action buttons.
 /// It scrolls as one piece, so tall content never overflows the screen.
 class _EventDetailsBody extends StatelessWidget {
   final Event event;
@@ -218,6 +221,10 @@ class _EventDetailsBody extends StatelessWidget {
   }
 }
 
+// ------------------------------------------------------------------
+// Banner
+// ------------------------------------------------------------------
+
 /// Wide banner: the event's image, or a navy gradient when it has none,
 /// with the category tags in the top-right corner.
 class _Banner extends StatelessWidget {
@@ -225,37 +232,21 @@ class _Banner extends StatelessWidget {
   final List<String> categories;
   const _Banner({required this.imageUrl, required this.categories});
 
-  /// Shown when there is no image, or when the image fails to load.
-  static const _placeholder = DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [kNavy, kTextSub],
-      ),
-    ),
-  );
-
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: SizedBox(
         width: double.infinity,
-        height: 180,
+        height: 200,
         // Stack layers the tags on top of the image.
         child: Stack(
           fit: StackFit.expand,
           children: [
             if (imageUrl == null)
-              _placeholder
+              const _BannerPlaceholder()
             else
-              Image.network(
-                imageUrl!,
-                // cover = fill the banner, cropping the edges.
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _placeholder,
-              ),
+              _BannerImage(url: imageUrl!),
             Positioned(
               top: 12,
               right: 12,
@@ -270,6 +261,76 @@ class _Banner extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shows an event image at its original proportions, whatever its shape.
+///
+/// Two copies of the same image are stacked:
+///  - back: blurred and zoomed to fill the whole banner, so any empty
+///    area is colored by the picture itself instead of left blank;
+///  - front: shown whole, uncropped, in the middle.
+/// A square or tall picture therefore gets blurred sides, and a wide
+/// banner fills almost everything. Both copies use the same link, so
+/// the file is only downloaded once.
+class _BannerImage extends StatelessWidget {
+  final String url;
+  const _BannerImage({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Base color, visible while the image is still loading.
+        const ColoredBox(color: kNavy),
+
+        // ---- Back: blurred fill ----
+        ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Image.network(
+            url,
+            // cover = fill the whole banner, cropping the edges.
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => const _BannerPlaceholder(),
+          ),
+        ),
+        // Slight darkening so the front image stands out from the blur.
+        const ColoredBox(color: Colors.black26),
+
+        // ---- Front: the real image, uncropped ----
+        Image.network(
+          url,
+          // contain = the whole image, original proportions.
+          fit: BoxFit.contain,
+          loadingBuilder: (_, child, progress) => progress == null
+              ? child
+              : const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+          errorBuilder: (_, _, _) => const _BannerPlaceholder(),
+        ),
+      ],
+    );
+  }
+}
+
+/// Navy gradient shown when an event has no image, or when its image
+/// fails to load.
+class _BannerPlaceholder extends StatelessWidget {
+  const _BannerPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [kNavy, kTextSub],
         ),
       ),
     );
@@ -296,6 +357,10 @@ class _BannerTag extends StatelessWidget {
     );
   }
 }
+
+// ------------------------------------------------------------------
+// Info rows and actions
+// ------------------------------------------------------------------
 
 /// One line of event info: a white rounded icon square and its text.
 class _InfoRow extends StatelessWidget {
