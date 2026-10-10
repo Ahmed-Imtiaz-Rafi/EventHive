@@ -51,6 +51,12 @@
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
+	<!-- Required for image_picker: allows picking from photo library -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>EventHive needs access to your photo library to select an event image.</string>
+	<!-- Required for image_picker: allows taking a new photo with camera -->
+	<key>NSCameraUsageDescription</key>
+	<string>EventHive needs camera access to capture an event image.</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>
