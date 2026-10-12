@@ -6,6 +6,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Login screen shared by every role (participant / organizer).
+/// Flow:
+/// 1. User enters email + password and taps **Log In**.
+/// 2. We authenticate with Supabase, then look up which roles the account
+///    holds (`user_role` table) and whether an organizer application is
+///    still pending (`organizer_requests` table).
+/// 3. 0 or 1 option  -> navigate straight to that role's home.
+///    2+ options     -> show a "Continue as" chip picker; the user picks
+///                      one and taps **Continue**.
+///
+/// A [ConsumerStatefulWidget] that combines a Flutter [StatefulWidget] with Riverpod.
+/// 
+/// **Why used here:**
+/// - **Local State & Controllers:** Required because this widget manages local state 
+///   (forms, loading flags, role options) or UI controllers (e.g., text controllers) 
+///   alongside Riverpod (such as using `obscureProvider` for the password toggle).
+/// - **Global State Access:** Provides seamless access to the [ref] object across lifecycle 
+///   methods like [initState] and throughout the state class without passing [BuildContext].
+
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,10 +33,19 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  // ------------------------------------------------------------------
+  // State
+  // ------------------------------------------------------------------
+
+  /// Key used to validate the email/password fields together.
   final _formKey = GlobalKey<FormState>();
+
+  /// Controllers that hold the text typed in each field.
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
 
+  /// True while login / role lookup is in progress (disables the button
+  /// and fields, shows a spinner).
   bool _loading = false;
 
   // Each entry is one thing the picker can show: a real held role
@@ -25,8 +53,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // an organizer application still awaiting approval. label is what's
   // shown on the chip; target is what gets passed to goToRoleHome.
   List<_RoleOption> _options = [];
+
+  /// The `target` of the chip currently selected in the picker.
+  /// Null until the picker is shown.
   String? _selectedTarget;
 
+  /// Controllers must be disposed manually to avoid memory leaks.
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -39,9 +71,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // Does NOT navigate yet if the person holds more than one role —
   // in that case we reveal the chip picker and wait for them to pick.
   // ------------------------------------------------------------------
+  
+  /// Validates the form, signs in with Supabase, loads the user's roles
+  /// and pending organizer request, then either navigates or reveals the
+  /// role picker. All errors are shown as a generic snackbar (details go
+  /// to the debug console only, so internals aren't leaked to the user).
+
   Future<void> _login() async {
+    // Stop here if email/password validators fail.
     if (!_formKey.currentState!.validate()) return;
 
+    // Reset any previous picker state and show the loading indicator.
     setState(() {
       _loading = true;
       _options = [];
@@ -49,6 +89,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
+      // Authenticate. Throws AuthException on wrong credentials.
       final authResponse = await Supabase.instance.client.auth
           .signInWithPassword(
             email: _emailCtrl.text.trim(),
@@ -74,6 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       //    (True even when they already hold 'participant' — that's
       //    the exact case this fix is for: granted participant
       //    immediately, organizer still awaiting approval.)
+      //    maybeSingle() returns null when there is no matching row.
       final pendingRequest = await Supabase.instance.client
           .from('organizer_requests')
           .select('request_id')
@@ -81,8 +123,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .eq('status', 'pending')
           .maybeSingle();
 
+      // The widget may have been closed while we were awaiting; using
+      // `context` after that would crash, so bail out.      
       if (!mounted) return;
 
+      // Build the list of choices: one per real role, plus a
+      // "Pending" entry if an organizer application is waiting.
       final options = <_RoleOption>[
         for (final r in roles) _RoleOption(label: _capitalize(r), target: r),
         if (pendingRequest != null)
@@ -105,11 +151,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       // More than one real option (e.g. Participant + Organizer, or
       // Participant + Organizer (Pending)) — let them choose.
+      // The first option is pre-selected for convenience.      
       setState(() {
         _options = options;
         _selectedTarget = options.first.target;
       });
     } on PostgrestException catch (e) {
+      // Database/query error (e.g. table or RLS problem).
       debugPrint('Postgrest error during login: ${e.message}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -119,6 +167,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
     } catch (e) {
+      // Anything else, including AuthException (wrong password, etc.).
       debugPrint('Unexpected error during login: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -128,15 +177,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
     } finally {
+      // Always stop the spinner, success or failure.
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  /// Called by the **Continue** button once the picker is visible.
   void _continueWithSelectedRole() {
     if (_selectedTarget == null) return;
     goToRoleHome(context, _selectedTarget!);
   }
 
+  /// 'participant' -> 'Participant'. Used for chip labels.
   String _capitalize(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
@@ -145,6 +197,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // now chosen which of their real roles to continue as.
   // ------------------------------------------------------------------
 
+  // ------------------------------------------------------------------
+  // UI helpers
+  // ------------------------------------------------------------------
+
+  /// Shared look for the text fields: white filled rounded box, grey
+  /// hint, leading [icon], optional [suffix] (e.g. the eye button),
+  /// and an amber border when focused.
   InputDecoration _decoration(String hint, IconData icon, {Widget? suffix}) {
     return InputDecoration(
       hintText: hint,
@@ -165,16 +224,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  // ------------------------------------------------------------------
+  // Build
+  // ------------------------------------------------------------------
+  
   @override
   Widget build(BuildContext context) {
+    // Rebuilds whenever the password-visibility toggle changes.
     final obscure = ref.watch(obscureProvider);
+
+    // Picker is only meaningful when there is more than one choice.
     final showRolePicker = _options.length > 1;
 
     return Scaffold(
       backgroundColor: kBg,
+      // Scrollable so the keyboard never overflows the screen.
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // ---- Navy header banner ("Welcome back, / Log In") ----
+            // Top padding includes the status-bar height so text isn't
+            // hidden behind the notch.
             Container(
               width: double.infinity,
               color: kNavy,
@@ -185,6 +255,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 24,
               ),
               child: Center(
+                // maxWidth keeps the layout tidy on tablets / web.
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: const Column(
@@ -208,6 +279,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
             ),
+
+            // ---- Form area ----
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
@@ -233,6 +306,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           style: TextStyle(color: Colors.grey),
                         ),
                         const SizedBox(height: 28),
+
+                        // Email field. Locked while loading, and once
+                        // the picker appears (credentials are already
+                        // verified, so editing them would be misleading).
                         TextFormField(
                           controller: _emailCtrl,
                           enabled: !_loading && !showRolePicker,
@@ -245,6 +322,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             if (v == null || v.trim().isEmpty) {
                               return 'Enter your email';
                             }
+                            // Basic shape check: something@something.something
                             if (!RegExp(
                               r'^[^@]+@[^@]+\.[^@]+$',
                             ).hasMatch(v.trim())) {
@@ -254,6 +332,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
+
+                        // Password field with show/hide eye button.
+                        // Visibility state lives in obscureProvider.
                         TextFormField(
                           controller: _passCtrl,
                           enabled: !_loading && !showRolePicker,
@@ -292,6 +373,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
+
+                          // One ChoiceChip per option; only one can be
+                          // selected at a time (tracked by _selectedTarget).
                           Wrap(
                             spacing: 8,
                             children: _options.map((opt) {
@@ -320,6 +404,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
 
                         const SizedBox(height: 32),
+
+                        // Main action button. Does double duty:
+                        // - picker hidden -> "Log In"   -> _login
+                        // - picker shown  -> "Continue" -> _continueWithSelectedRole
+                        // null onPressed while loading disables it; the
+                        // disabled colors are set equal to the normal ones
+                        // so it doesn't turn grey during loading.
                         SizedBox(
                           width: double.infinity,
                           height: 54,
@@ -358,6 +449,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
 
                         const SizedBox(height: 20),
+
+                        // Link to the registration screen. `push` (not
+                        // `go`) keeps Login in the stack so Back returns here.
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -390,8 +484,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
+/// One entry in the "Continue as" picker.
 class _RoleOption {
+  /// Text shown on the chip, e.g. 'Participant' or 'Organizer (Pending)'.
   final String label;
+
+  /// Value passed to `goToRoleHome` when chosen.
   final String target; // 'participant' | 'organizer' | 'pending'
   const _RoleOption({required this.label, required this.target});
 }
