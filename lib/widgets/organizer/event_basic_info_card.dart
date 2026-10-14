@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,17 +5,15 @@ import 'package:event_hive/core/theme/app_theme.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Collapsible card for entering the basic information of an event.
-/// Image is stored as bytes so it works on both Web and Android.
+/// Image bytes support both Flutter Web and Android.
 class EventBasicInfoCard extends StatefulWidget {
   final TextEditingController nameCtrl;
   final TextEditingController venueCtrl;
-  final TextEditingController orgCtrl;
   final TextEditingController capacityCtrl;
 
   final DateTime? selectedDate;
   final ValueChanged<DateTime> onDateSelected;
 
-  // Image bytes are used instead of File for Web compatibility.
   final Uint8List? pickedImage;
   final ValueChanged<Uint8List> onImagePicked;
 
@@ -24,7 +21,6 @@ class EventBasicInfoCard extends StatefulWidget {
     super.key,
     required this.nameCtrl,
     required this.venueCtrl,
-    required this.orgCtrl,
     required this.capacityCtrl,
     required this.selectedDate,
     required this.onDateSelected,
@@ -33,42 +29,46 @@ class EventBasicInfoCard extends StatefulWidget {
   });
 
   @override
-  State<EventBasicInfoCard> createState() => _EventBasicInfoCardState();
+  State<EventBasicInfoCard> createState() =>
+      _EventBasicInfoCardState();
 }
 
 class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
   bool _expanded = true;
 
-  // Opens gallery/camera and converts the selected image to bytes.
+  /// Opens the image picker and reads the selected image as bytes.
   Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        imageQuality: 80,
+      );
 
-    final picked = await picker.pickImage(
-      source: source,
-      imageQuality: 80,
-    );
-
-    if (picked != null) {
-      final bytes = await picked.readAsBytes();
-      widget.onImagePicked(bytes);
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        if (mounted) widget.onImagePicked(bytes);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to select image: $e')),
+      );
     }
   }
 
-  // Shows options for selecting an image.
+  /// Displays image selection options.
   void _showImageSourceSheet() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(16),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-
             Container(
               width: 40,
               height: 4,
@@ -77,9 +77,7 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-
             const SizedBox(height: 12),
-
             ListTile(
               leading: const Icon(
                 Icons.photo_library_outlined,
@@ -91,7 +89,6 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
                 _pickImage(ImageSource.gallery);
               },
             ),
-
             ListTile(
               leading: const Icon(
                 Icons.camera_alt_outlined,
@@ -103,7 +100,6 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
                 _pickImage(ImageSource.camera);
               },
             ),
-
             const SizedBox(height: 8),
           ],
         ),
@@ -111,18 +107,23 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
     );
   }
 
-  // Opens the date picker.
+  /// Opens the date picker and returns the selected date.
   Future<void> _pickDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final selected = widget.selectedDate;
+
+    final initialDate = selected != null && !selected.isBefore(today)
+        ? selected
+        : today;
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: widget.selectedDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
+      initialDate: initialDate,
+      firstDate: today,
       lastDate: DateTime(2100),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: kNavy,
-          ),
+          colorScheme: const ColorScheme.light(primary: kNavy),
         ),
         child: child!,
       ),
@@ -149,11 +150,8 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
       ),
       child: Column(
         children: [
-          // Section header with expand/collapse.
           InkWell(
-            onTap: () => setState(() {
-              _expanded = !_expanded;
-            }),
+            onTap: () => setState(() => _expanded = !_expanded),
             borderRadius: BorderRadius.circular(16),
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -181,23 +179,14 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
               ),
             ),
           ),
-
           if (_expanded) ...[
             const Divider(height: 1),
-
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                16,
-                16,
-                20,
-              ),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Event image.
                   _label('Event Image'),
-
                   GestureDetector(
                     onTap: _showImageSourceSheet,
                     child: Container(
@@ -206,26 +195,20 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFF5F5F5),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: kBorder,
-                        ),
+                        border: Border.all(color: kBorder),
                         image: widget.pickedImage != null
                             ? DecorationImage(
-                          image: MemoryImage(
-                            widget.pickedImage!,
-                          ),
+                          image: MemoryImage(widget.pickedImage!),
                           fit: BoxFit.cover,
                         )
                             : null,
                       ),
                       child: widget.pickedImage == null
-                          ? Column(
-                        mainAxisAlignment:
-                        MainAxisAlignment.center,
-                        children: const [
+                          ? const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                           Icon(
-                            Icons
-                                .add_photo_alternate_outlined,
+                            Icons.add_photo_alternate_outlined,
                             size: 36,
                             color: kTextSub,
                           ),
@@ -252,19 +235,16 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
                         child: Padding(
                           padding: const EdgeInsets.all(8),
                           child: Container(
-                            padding:
-                            const EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.black54,
-                              borderRadius:
-                              BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Row(
-                              mainAxisSize:
-                              MainAxisSize.min,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   Icons.edit,
@@ -286,20 +266,14 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   _label('Event Name'),
-
                   _field(
                     controller: widget.nameCtrl,
                     hint: 'e.g. Tech Fest 2027',
                   ),
-
                   const SizedBox(height: 16),
-
                   _label('Date'),
-
                   GestureDetector(
                     onTap: _pickDate,
                     child: Container(
@@ -308,9 +282,7 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
                         vertical: 14,
                       ),
                       decoration: BoxDecoration(
-                        border: Border.all(
-                          color: kBorder,
-                        ),
+                        border: Border.all(color: kBorder),
                         borderRadius: BorderRadius.circular(10),
                         color: Colors.white,
                       ),
@@ -339,29 +311,14 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   _label('Venue'),
-
                   _field(
                     controller: widget.venueCtrl,
                     hint: 'e.g. Main Auditorium',
                   ),
-
                   const SizedBox(height: 16),
-
-                  _label('Organization'),
-
-                  _field(
-                    controller: widget.orgCtrl,
-                    hint: 'e.g. CSE Club',
-                  ),
-
-                  const SizedBox(height: 16),
-
                   _label('Capacity'),
-
                   _field(
                     controller: widget.capacityCtrl,
                     hint: 'e.g. 500',
@@ -379,7 +336,7 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
     );
   }
 
-  // Creates the required-field label.
+  /// Creates a label for a form field.
   Widget _label(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -406,7 +363,7 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
     );
   }
 
-  // Reusable text field for the basic event information.
+  /// Creates a reusable text field.
   Widget _field({
     required TextEditingController controller,
     required String hint,
@@ -417,16 +374,10 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
       controller: controller,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
-      style: const TextStyle(
-        fontSize: 14,
-        color: kTextMain,
-      ),
+      style: const TextStyle(fontSize: 14, color: kTextMain),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
-          color: kTextSub,
-          fontSize: 14,
-        ),
+        hintStyle: const TextStyle(color: kTextSub, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 13,
@@ -435,22 +386,15 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
         fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: kBorder,
-          ),
+          borderSide: const BorderSide(color: kBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: kBorder,
-          ),
+          borderSide: const BorderSide(color: kBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: kNavy,
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: kNavy, width: 1.5),
         ),
       ),
     );
