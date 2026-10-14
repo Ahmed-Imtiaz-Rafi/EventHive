@@ -19,7 +19,10 @@ class AnalyticsScreen extends StatelessWidget {
         ),
       ),
       body: const Center(
-        child: Text('Analytics — coming soon', style: TextStyle(color: kTextSub)),
+        child: Text(
+          'Analytics — coming soon',
+          style: TextStyle(color: kTextSub),
+        ),
       ),
     );
   }

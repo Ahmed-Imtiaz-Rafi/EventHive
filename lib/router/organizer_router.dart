@@ -57,7 +57,7 @@ final List<RouteBase> organizerRoutes = [
   GoRoute(
     path: '/organizer/event/:eventId',
     builder: (context, state) {
-      final eventId = int.parse(state.pathParameters['eventId']!);
+      final eventId = state.pathParameters['eventId']!;
       return ManageEventScreen(eventId: eventId);
     },
   ),
