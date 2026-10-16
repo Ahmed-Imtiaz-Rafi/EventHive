@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ManageEventScreen extends StatelessWidget {
-  final int eventId;
+  final String eventId;
   const ManageEventScreen({super.key, required this.eventId});
 
   @override
