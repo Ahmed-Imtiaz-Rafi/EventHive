@@ -1,6 +1,7 @@
 import 'package:event_hive/core/theme/app_theme.dart';
 import 'package:event_hive/provider/common/category_provider.dart';
 import 'package:event_hive/provider/common/user_provider.dart';
+import 'package:event_hive/provider/common/notification_provider.dart';
 import 'package:event_hive/provider/participant/event_provider.dart';
 import 'package:event_hive/widgets/common/event_card.dart';
 import 'package:flutter/material.dart';
@@ -58,8 +59,7 @@ class ParticipantHomeScreen extends StatelessWidget {
 /// notification bell.
 ///
 /// The name is the logged-in user's `username`, read through
-/// [currentUsernameProvider]. The bell count is hardcoded because the
-/// schema has no notifications table yet.
+/// [currentUsernameProvider].
 class _HomeHeader extends ConsumerWidget {
   const _HomeHeader();
 
@@ -85,6 +85,11 @@ class _HomeHeader extends ConsumerWidget {
             return 'Participant';
           },
         );
+
+    // Unread announcements, from the database.
+    final unread = ref
+        .watch(unreadNotificationsProvider)
+        .maybeWhen(data: (n) => n, orElse: () => 0);
 
     return Container(
       width: double.infinity,
@@ -128,7 +133,7 @@ class _HomeHeader extends ConsumerWidget {
               ],
             ),
           ),
-          const _NotificationBell(count: 3),
+          _NotificationBell(count: unread),
         ],
       ),
     );
@@ -144,8 +149,7 @@ class _NotificationBell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // TODO: open the notifications screen once it exists.
-      onTap: () {},
+      onTap: () => context.push('/participant/notifications'),
       child: Stack(
         // Lets the badge sit partly outside the 48x48 box.
         clipBehavior: Clip.none,
