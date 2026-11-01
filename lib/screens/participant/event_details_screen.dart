@@ -4,6 +4,7 @@ import 'package:event_hive/core/theme/app_theme.dart';
 import 'package:event_hive/core/utils/event_date_time_format.dart';
 import 'package:event_hive/model/common/event.dart';
 import 'package:event_hive/provider/participant/event_provider.dart';
+import 'package:event_hive/widgets/common/app_header_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,7 +33,10 @@ class EventDetailsScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _DetailsHeader(),
+              const AppHeaderBar(
+                title: 'Event details',
+                fallbackRoute: '/participant/home',
+              ),
               const SizedBox(height: 16),
 
               // The header stays visible in every state, so Back always
@@ -85,55 +89,6 @@ class EventDetailsScreen extends ConsumerWidget {
 }
 
 // ------------------------------------------------------------------
-// Header
-// ------------------------------------------------------------------
-
-/// Navy bar at the top: back arrow and the "Event details" title.
-class _DetailsHeader extends StatelessWidget {
-  const _DetailsHeader();
-
-  /// Goes back to the previous screen. If there is none (the page was
-  /// refreshed or opened from a link, so the stack is empty), go to
-  /// the participant home instead of doing nothing.
-  void _goBack(BuildContext context) {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/participant/home');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: BoxDecoration(
-        color: kNavy,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => _goBack(context),
-            icon: const Icon(Icons.chevron_left, color: Colors.white),
-          ),
-          const Text(
-            'Event details',
-            style: TextStyle(
-              fontFamily: 'serif',
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ------------------------------------------------------------------
 // Body
 // ------------------------------------------------------------------
 
@@ -175,10 +130,11 @@ class _EventDetailsBody extends StatelessWidget {
           const SizedBox(height: 16),
           _InfoRow(icon: Icons.calendar_today_outlined, text: _whenText()),
           _InfoRow(icon: Icons.location_on_outlined, text: event.venue),
-          _InfoRow(
-            icon: Icons.person_outline,
-            text: 'Host: ${event.hostingOrg}',
-          ),
+          if (event.hostingOrg?.trim().isNotEmpty ?? false)
+            _InfoRow(
+              icon: Icons.person_outline,
+              text: 'Host: ${event.hostingOrg!.trim()}',
+            ),
           _InfoRow(
             icon: Icons.groups_outlined,
             text: event.isFull
@@ -213,7 +169,7 @@ class _EventDetailsBody extends StatelessWidget {
             const SizedBox(height: 24),
           ],
 
-          _ActionButtons(isFull: event.isFull),
+          _ActionButtons(eventId: event.id, isFull: event.isFull),
           const SizedBox(height: 24),
         ],
       ),
@@ -234,6 +190,10 @@ class _Banner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A blank link counts as "no image", the same as null.
+    final url = imageUrl?.trim();
+    final hasImage = url != null && url.isNotEmpty;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: SizedBox(
@@ -243,10 +203,10 @@ class _Banner extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (imageUrl == null)
-              const _BannerPlaceholder()
+            if (hasImage)
+              _BannerImage(url: url)
             else
-              _BannerImage(url: imageUrl!),
+              const _BannerPlaceholder(),
             Positioned(
               top: 12,
               right: 12,
@@ -398,14 +358,24 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// The two main actions of the screen: "View add-ons" and "Register now".
+/// The two main actions of the screen.
 ///
-/// Both do nothing yet. They are connected once the add-ons and
-/// registration flow exists. "Register now" is disabled when the event
-/// is full, so nobody can start a registration that cannot succeed.
+/// "View add-ons" opens a read-only list of what the event offers, so
+/// anyone can look without registering. "Register now" starts the
+/// registration at Select role, and is disabled when the event is full
+/// so nobody can start a registration that cannot succeed.
 class _ActionButtons extends StatelessWidget {
+  final String eventId;
   final bool isFull;
-  const _ActionButtons({required this.isFull});
+  const _ActionButtons({required this.eventId, required this.isFull});
+
+  /// push (not go) keeps this screen in the stack, so Back returns here.
+  void _openSelectRole(BuildContext context) =>
+      context.push('/participant/event/$eventId/role');
+
+  /// Read-only list of the event's add-ons; no registration needed.
+  void _openAddonsPreview(BuildContext context) =>
+      context.push('/participant/event/$eventId/addons-preview');
 
   @override
   Widget build(BuildContext context) {
@@ -415,7 +385,7 @@ class _ActionButtons extends StatelessWidget {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: () {},
+            onPressed: () => _openAddonsPreview(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: kAmber,
               foregroundColor: Colors.white,
@@ -435,7 +405,7 @@ class _ActionButtons extends StatelessWidget {
           height: 52,
           child: OutlinedButton(
             // null disables the button.
-            onPressed: isFull ? null : () {},
+            onPressed: isFull ? null : () => _openSelectRole(context),
             style: OutlinedButton.styleFrom(
               foregroundColor: kTextMain,
               side: BorderSide(color: isFull ? kBorder : kNavy, width: 1.5),

@@ -45,7 +45,7 @@ class Event {
   final DateTime? endsAt;
 
   /// Club or department hosting the event (`events.hosting_org`).
-  final String hostingOrg;
+  final String? hostingOrg;
 
   const Event({
     required this.id,
@@ -58,7 +58,7 @@ class Event {
     this.imageUrl,
     this.description,
     this.endsAt,
-    required this.hostingOrg,
+    this.hostingOrg,
   });
 
   // ------------------------------------------------------------------
@@ -97,7 +97,7 @@ class Event {
       imageUrl: map['image_url'] as String?,
       description: map['description'] as String?,
       endsAt: endTime == null ? null : DateTime.parse('${date}T$endTime'),
-      hostingOrg: map['hosting_org'] as String,
+      hostingOrg: map['hosting_org'] as String?,
     );
   }
 }
