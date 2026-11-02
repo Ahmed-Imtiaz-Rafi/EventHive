@@ -17,12 +17,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///                      one and taps **Continue**.
 ///
 /// A [ConsumerStatefulWidget] that combines a Flutter [StatefulWidget] with Riverpod.
-/// 
+///
 /// **Why used here:**
-/// - **Local State & Controllers:** Required because this widget manages local state 
-///   (forms, loading flags, role options) or UI controllers (e.g., text controllers) 
+/// - **Local State & Controllers:** Required because this widget manages local state
+///   (forms, loading flags, role options) or UI controllers (e.g., text controllers)
 ///   alongside Riverpod (such as using `obscureProvider` for the password toggle).
-/// - **Global State Access:** Provides seamless access to the [ref] object across lifecycle 
+/// - **Global State Access:** Provides seamless access to the [ref] object across lifecycle
 ///   methods like [initState] and throughout the state class without passing [BuildContext].
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -71,7 +71,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // Does NOT navigate yet if the person holds more than one role —
   // in that case we reveal the chip picker and wait for them to pick.
   // ------------------------------------------------------------------
-  
+
   /// Validates the form, signs in with Supabase, loads the user's roles
   /// and pending organizer request, then either navigates or reveals the
   /// role picker. All errors are shown as a generic snackbar (details go
@@ -124,7 +124,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .maybeSingle();
 
       // The widget may have been closed while we were awaiting; using
-      // `context` after that would crash, so bail out.      
+      // `context` after that would crash, so bail out.
       if (!mounted) return;
 
       // Build the list of choices: one per real role, plus a
@@ -151,7 +151,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       // More than one real option (e.g. Participant + Organizer, or
       // Participant + Organizer (Pending)) — let them choose.
-      // The first option is pre-selected for convenience.      
+      // The first option is pre-selected for convenience.
       setState(() {
         _options = options;
         _selectedTarget = options.first.target;
@@ -227,7 +227,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // ------------------------------------------------------------------
   // Build
   // ------------------------------------------------------------------
-  
+
   @override
   Widget build(BuildContext context) {
     // Rebuilds whenever the password-visibility toggle changes.
