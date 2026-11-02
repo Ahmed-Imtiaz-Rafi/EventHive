@@ -48,17 +48,20 @@ class RegistrationException implements Exception {
 
   const RegistrationException(this.code, this.message);
 
-  /// Turns whatever was thrown into a [RegistrationException]. The raw
-  /// error goes to the console; the user only sees [message].
+  /// Turns whatever was thrown into a [RegistrationException].
+  ///
+  /// Refusals the database makes on purpose (a full event, an incomplete
+  /// profile, ...) are normal and are not logged. Only unexpected errors
+  /// go to the console. The user only ever sees [message].
   factory RegistrationException.from(Object error) {
     final raw = error is PostgrestException ? error.message : error.toString();
-    debugPrint('Registration error: $raw');
-
+    
     final match = RegExp(
       r'^([A-Z_]+):\s*(.*)$',
       dotAll: true,
     ).firstMatch(raw.trim());
     if (match == null) {
+      debugPrint('Unexpected registration error: $raw');
       return const RegistrationException(
         'UNKNOWN',
         'Something went wrong. Please try again.',
@@ -74,9 +77,14 @@ class RegistrationException implements Exception {
         '${details[0].toUpperCase()}${details.substring(1)}',
       );
     }
+
+    final friendly = _friendly[code];
+    if (friendly == null) {
+      debugPrint('Unhandled registration error code: $raw');
+    }
     return RegistrationException(
       code,
-      _friendly[code] ?? 'Something went wrong. Please try again.',
+      friendly ?? 'Something went wrong. Please try again.',
     );
   }
 

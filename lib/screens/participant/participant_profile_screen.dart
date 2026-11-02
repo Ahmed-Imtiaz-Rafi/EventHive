@@ -147,7 +147,7 @@ class _UserCard extends StatelessWidget {
       child: Row(
         children: [
           // The profile picture, or a person icon until one is set.
-          UserAvatar(imageUrl: profile.avatarUrl, size: 56),
+          UserAvatar(path: profile.avatarPath, size: 56),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

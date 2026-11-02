@@ -172,7 +172,7 @@ class _EditFormState extends ConsumerState<_EditForm> {
           // ---- Profile picture ----
           // Changed and saved on its own, separately from the Save
           // button below.
-          Center(child: _AvatarEditor(imageUrl: widget.profile.avatarUrl)),
+          Center(child: _AvatarEditor(path: widget.profile.avatarPath)),
           const SizedBox(height: 20),
 
           // The two things registering needs.
@@ -327,8 +327,9 @@ class _EditFormState extends ConsumerState<_EditForm> {
 /// photo") opens the device's pictures; the chosen one is uploaded right
 /// away and saved on the profile, separately from the Save button.
 class _AvatarEditor extends ConsumerStatefulWidget {
-  final String? imageUrl;
-  const _AvatarEditor({required this.imageUrl});
+  /// The saved picture path (`users.avatar_url`), or null.
+  final String? path;
+  const _AvatarEditor({required this.path});
 
   @override
   ConsumerState<_AvatarEditor> createState() => _AvatarEditorState();
@@ -337,9 +338,9 @@ class _AvatarEditor extends ConsumerStatefulWidget {
 class _AvatarEditorState extends ConsumerState<_AvatarEditor> {
   final _picker = ImagePicker();
 
-  /// The picture shown now. Kept here so it changes the moment an upload
-  /// finishes, without waiting for the profile to reload.
-  String? _url;
+  /// The picture path shown now. Kept here so it changes the moment an
+  /// upload finishes, without waiting for the profile to reload.
+  String? _path;
 
   /// True while uploading or removing; stops double taps.
   bool _busy = false;
@@ -350,7 +351,7 @@ class _AvatarEditorState extends ConsumerState<_AvatarEditor> {
   @override
   void initState() {
     super.initState();
-    _url = widget.imageUrl;
+    _path = widget.path;
   }
 
   /// Lets the user choose a picture from the device and uploads it.
@@ -371,9 +372,11 @@ class _AvatarEditorState extends ConsumerState<_AvatarEditor> {
       _error = null;
     });
     try {
-      final url = await ref.read(profileActionsProvider).uploadAvatar(file);
+      final path = await ref
+          .read(profileActionsProvider)
+          .uploadAvatar(file, previousPath: _path);
       if (!mounted) return;
-      setState(() => _url = url);
+      setState(() => _path = path);
       // The Profile tab shows the new picture too.
       ref.invalidate(currentProfileProvider);
     } on ProfileException catch (e) {
@@ -395,9 +398,11 @@ class _AvatarEditorState extends ConsumerState<_AvatarEditor> {
       _error = null;
     });
     try {
-      await ref.read(profileActionsProvider).removeAvatar();
+      await ref
+          .read(profileActionsProvider)
+          .removeAvatar(previousPath: _path);
       if (!mounted) return;
-      setState(() => _url = null);
+      setState(() => _path = null);
       ref.invalidate(currentProfileProvider);
     } on ProfileException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -421,7 +426,7 @@ class _AvatarEditorState extends ConsumerState<_AvatarEditor> {
             onTap: _change,
             child: Stack(
               children: [
-                UserAvatar(imageUrl: _url, size: 96),
+                UserAvatar(path: _path, size: 96),
 
                 // Dims the picture while uploading.
                 if (_busy)
@@ -470,7 +475,7 @@ class _AvatarEditorState extends ConsumerState<_AvatarEditor> {
           onPressed: _busy ? null : _change,
           child: const Text('Change photo'),
         ),
-        if (_url != null)
+        if (_path != null)
           TextButton(
             onPressed: _busy ? null : _remove,
             child: const Text(

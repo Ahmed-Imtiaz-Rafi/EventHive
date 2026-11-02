@@ -7,6 +7,7 @@ import 'package:event_hive/provider/participant/registration_provider.dart';
 import 'package:event_hive/provider/participant/accessory_provider.dart';
 import 'package:event_hive/provider/participant/registration_draft_provider.dart';
 import 'package:event_hive/widgets/common/app_header_bar.dart';
+import 'package:event_hive/widgets/common/profile_check.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -548,10 +549,12 @@ class _PriceLine extends StatelessWidget {
 /// Saves the registration, then opens the payment screen.
 ///
 /// Registering creates the registration in the database (it holds a seat
-/// for one day), so this is the point where the choices become real. A
-/// free total is confirmed at once and shows the confirmation instead of
-/// asking for money. If the participant already has a registration for
-/// this event, it is opened instead of showing an error.
+/// for one day), so this is the point where the choices become real. The
+/// profile is checked first, so a student without a student ID and
+/// department is asked to complete it instead of being refused by the
+/// database. A free total is confirmed at once and shows the confirmation
+/// instead of asking for money. If the participant already has a
+/// registration for this event, it is opened instead of showing an error.
 class _ProceedButton extends ConsumerStatefulWidget {
   final String eventId;
   final double total;
@@ -582,6 +585,11 @@ class _ProceedButtonState extends ConsumerState<_ProceedButton> {
 
     setState(() => _busy = true);
     try {
+      // The database needs a student ID and a department. Ask for them
+      // here, before sending anything.
+      if (!await ensureProfileComplete(context, ref)) return;
+      if (!mounted) return;
+
       final id = await actions.register(
         eventId: widget.eventId,
         roleName: role.name,
@@ -596,9 +604,7 @@ class _ProceedButtonState extends ConsumerState<_ProceedButton> {
       // go replaces the stack: the choices are saved, so Back must not
       // return to them. The draft is cleared after the screen is gone.
       context.go('/participant/my-events/registration/$id');
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => draftNotifier.clear(),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => draftNotifier.clear());
     } on RegistrationException catch (e) {
       if (!mounted) return;
 
@@ -612,16 +618,13 @@ class _ProceedButtonState extends ConsumerState<_ProceedButton> {
         }
       }
 
-      _showMessage(
-        e.message,
-        // An incomplete profile can be fixed on the Profile tab.
-        action: e.code == 'PROFILE_INCOMPLETE'
-            ? SnackBarAction(
-                label: 'Profile',
-                onPressed: () => context.push('/participant/profile/edit'),
-              )
-            : null,
-      );
+      // The profile became incomplete after the check: ask again.
+      if (e.code == 'PROFILE_INCOMPLETE') {
+        await showProfileRequiredDialog(context);
+        return;
+      }
+
+      _showMessage(e.message);
     } catch (e) {
       debugPrint('Unexpected error while registering: $e');
       if (mounted) {
@@ -632,10 +635,10 @@ class _ProceedButtonState extends ConsumerState<_ProceedButton> {
     }
   }
 
-  void _showMessage(String text, {SnackBarAction? action}) {
+  void _showMessage(String text) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(text), action: action));
+    ).showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override

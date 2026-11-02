@@ -109,13 +109,14 @@ class ProfileActions {
     }
   }
 
-  /// Uploads [file] as the profile picture, saves its link on the
-  /// profile, and returns that link.
+  /// Uploads [file] as the profile picture, saves its PATH on the profile,
+  /// and returns that path.
   ///
-  /// The picture goes into a folder named after the user (the only place
-  /// the database lets them write) under a new name each time, so the
-  /// browser never shows an older cached picture.
-  Future<String> uploadAvatar(XFile file) async {
+  /// The database only accepts a path inside the user's own folder
+  /// (`<user_id>/<file>`), never a full address. Each picture gets a new
+  /// file name, so the browser never shows an older cached one. The
+  /// picture being replaced ([previousPath]) is deleted afterwards.
+  Future<String> uploadAvatar(XFile file, {String? previousPath}) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       throw const ProfileException('Please sign in again.');
@@ -141,6 +142,7 @@ class ProfileActions {
     }
 
     final path = '$userId/${DateTime.now().millisecondsSinceEpoch}.$extension';
+
     try {
       await _client.storage
           .from('avatars')
@@ -149,53 +151,73 @@ class ProfileActions {
             bytes,
             fileOptions: FileOptions(contentType: contentType),
           );
-      final url = _client.storage.from('avatars').getPublicUrl(path);
-      await _saveAvatarUrl(userId, url);
-      return url;
     } on StorageException catch (e) {
       debugPrint('Picture upload failed: ${e.message}');
       throw const ProfileException(
         'Could not upload the picture. Please try again.',
       );
-    } on PostgrestException catch (e) {
-      debugPrint('Saving the picture link failed: ${e.message}');
+    }
+
+    try {
+      await _savePath(userId, path);
+    } catch (e) {
+      debugPrint('Saving the picture path failed: $e');
+      // Do not leave an unused file behind.
+      await _deleteFile(userId, path);
       throw const ProfileException(
         'Could not save your picture. Please try again.',
       );
     }
+
+    await _deleteFile(userId, previousPath);
+    return path;
   }
 
-  /// Removes the profile picture from the profile. The file itself stays
-  /// in storage, because users cannot delete files.
-  Future<void> removeAvatar() async {
+  /// Removes the profile picture from the profile and deletes its file
+  /// ([previousPath]).
+  Future<void> removeAvatar({String? previousPath}) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       throw const ProfileException('Please sign in again.');
     }
 
     try {
-      await _saveAvatarUrl(userId, null);
-    } on PostgrestException catch (e) {
-      debugPrint('Removing the picture failed: ${e.message}');
+      await _savePath(userId, null);
+    } catch (e) {
+      debugPrint('Removing the picture failed: $e');
       throw const ProfileException(
         'Could not remove your picture. Please try again.',
       );
     }
+
+    await _deleteFile(userId, previousPath);
   }
 
-  /// Writes (or clears, with null) the picture link on the user's row.
-  Future<void> _saveAvatarUrl(String userId, String? url) async {
+  /// Writes (or clears, with null) the picture path on the user's row.
+  Future<void> _savePath(String userId, String? path) async {
     final updated = await _client
         .from('users')
-        .update({'avatar_url': url})
+        .update({'avatar_url': path})
         .eq('user_id', userId)
         .select('user_id');
 
     // An update that matched no row is silent, so check for it.
     if ((updated as List).isEmpty) {
-      throw const ProfileException(
-        'Could not save your picture. Please try again.',
-      );
+      throw const ProfileException('The profile was not updated.');
+    }
+  }
+
+  /// Deletes one of the user's own picture files. Tidying up only, so a
+  /// failure is not worth bothering the user with.
+  Future<void> _deleteFile(String userId, String? path) async {
+    // Only paths inside the user's own folder; an old full address or an
+    // empty value has no file to delete.
+    if (path == null || !path.startsWith('$userId/')) return;
+
+    try {
+      await _client.storage.from('avatars').remove([path]);
+    } catch (e) {
+      debugPrint('Could not delete an old picture: $e');
     }
   }
 }

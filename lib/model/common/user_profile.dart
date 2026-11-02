@@ -8,9 +8,10 @@ class UserProfile {
   final int? departmentId;
   final String? departmentName;
 
-  /// Link to the profile picture in the public `avatars` bucket. Null
-  /// when the user has not set one.
-  final String? avatarUrl;
+  /// Path of the profile picture in the public `avatars` bucket
+  /// (`<user_id>/<file>`), from `users.avatar_url`. Null when the user
+  /// has not set one. Use `avatarPublicUrl` to get an address.
+  final String? avatarPath;
 
   const UserProfile({
     required this.username,
@@ -19,7 +20,7 @@ class UserProfile {
     this.studentId,
     this.departmentId,
     this.departmentName,
-    this.avatarUrl,
+    this.avatarPath,
   });
 
   /// True when the profile has what registering requires: a student ID
@@ -37,7 +38,7 @@ class UserProfile {
       studentId: map['student_id'] as String?,
       departmentId: map['department_id'] as int?,
       departmentName: department?['department_name'] as String?,
-      avatarUrl: map['avatar_url'] as String?,
+      avatarPath: map['avatar_url'] as String?,
     );
   }
 }

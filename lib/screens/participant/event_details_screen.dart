@@ -5,6 +5,7 @@ import 'package:event_hive/core/utils/event_date_time_format.dart';
 import 'package:event_hive/model/common/event.dart';
 import 'package:event_hive/provider/participant/event_provider.dart';
 import 'package:event_hive/widgets/common/app_header_bar.dart';
+import 'package:event_hive/widgets/common/profile_check.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -215,9 +216,7 @@ class _Banner extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 alignment: WrapAlignment.end,
-                children: [
-                  for (final name in categories) _BannerTag(name),
-                ],
+                children: [for (final name in categories) _BannerTag(name)],
               ),
             ),
           ],
@@ -361,24 +360,32 @@ class _InfoRow extends StatelessWidget {
 /// The two main actions of the screen.
 ///
 /// "View add-ons" opens a read-only list of what the event offers, so
-/// anyone can look without registering. "Register now" starts the
-/// registration at Select role, and is disabled when the event is full
-/// so nobody can start a registration that cannot succeed.
-class _ActionButtons extends StatelessWidget {
+/// anyone can look without registering. "Register now" first checks that
+/// the profile is complete, then starts the registration at Select role;
+/// it is disabled when the event is full so nobody can start a
+/// registration that cannot succeed.
+class _ActionButtons extends ConsumerWidget {
   final String eventId;
   final bool isFull;
   const _ActionButtons({required this.eventId, required this.isFull});
 
-  /// push (not go) keeps this screen in the stack, so Back returns here.
-  void _openSelectRole(BuildContext context) =>
-      context.push('/participant/event/$eventId/role');
+  /// Starts a registration. A student without a student ID and department
+  /// is asked to complete the profile first, instead of walking through
+  /// every step only to be refused by the database.
+  Future<void> _register(BuildContext context, WidgetRef ref) async {
+    if (!await ensureProfileComplete(context, ref)) return;
+    if (!context.mounted) return;
+
+    // push (not go) keeps this screen in the stack, so Back returns here.
+    context.push('/participant/event/$eventId/role');
+  }
 
   /// Read-only list of the event's add-ons; no registration needed.
   void _openAddonsPreview(BuildContext context) =>
       context.push('/participant/event/$eventId/addons-preview');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
         SizedBox(
@@ -405,7 +412,7 @@ class _ActionButtons extends StatelessWidget {
           height: 52,
           child: OutlinedButton(
             // null disables the button.
-            onPressed: isFull ? null : () => _openSelectRole(context),
+            onPressed: isFull ? null : () => _register(context, ref),
             style: OutlinedButton.styleFrom(
               foregroundColor: kTextMain,
               side: BorderSide(color: isFull ? kBorder : kNavy, width: 1.5),
