@@ -22,8 +22,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _venueCtrl = TextEditingController();
   final TextEditingController _capacityCtrl = TextEditingController();
-  // Description is optional — maps to events.description in the schema
-  final TextEditingController _descCtrl = TextEditingController();
 
   DateTime? _selectedDate;
   TimeOfDay? _startTime;
@@ -54,7 +52,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _nameCtrl.dispose();
     _venueCtrl.dispose();
     _capacityCtrl.dispose();
-    _descCtrl.dispose();
     super.dispose();
   }
 
@@ -474,7 +471,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           'p_capacity': capacity,
           'p_category_ids': _selectedCategoryIds.toList(),
           'p_club_id': _selectedClubId,
-          'p_description': _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+          'p_description': null,
           'p_start_time': _formatTime(_startTime),
           'p_end_time': _formatTime(_endTime),
           'p_image_url': imageUrl,
@@ -669,7 +666,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 nameCtrl: _nameCtrl,
                 venueCtrl: _venueCtrl,
                 capacityCtrl: _capacityCtrl,
-                descCtrl: _descCtrl,
                 selectedDate: _selectedDate,
                 onDateSelected: (date) {
                   setState(() => _selectedDate = date);
