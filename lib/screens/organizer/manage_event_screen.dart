@@ -28,13 +28,30 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
     _loadEvent();
   }
 
-  /// Fetches the full event row using its UUID.
+  /// Fetches the full event row using its UUID, after verifying ownership.
+  /// Only events linked to the signed-in user via event_organizer are allowed.
   Future<void> _loadEvent() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('Not signed in.');
+
+      // Ownership check: confirm this user is an organizer of this event
+      // before loading any details. This prevents accessing events by URL.
+      final ownerCheck = await _supabase
+          .from('event_organizer')
+          .select('event_id')
+          .eq('event_id', widget.eventId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (ownerCheck == null) {
+        throw Exception('You do not have permission to manage this event.');
+      }
+
       final row = await _supabase
           .from('events')
           .select()
