@@ -10,6 +10,7 @@ class EventBasicInfoCard extends StatefulWidget {
   final TextEditingController nameCtrl;
   final TextEditingController venueCtrl;
   final TextEditingController capacityCtrl;
+  final TextEditingController descCtrl;
 
   final DateTime? selectedDate;
   final ValueChanged<DateTime> onDateSelected;
@@ -22,6 +23,7 @@ class EventBasicInfoCard extends StatefulWidget {
     required this.nameCtrl,
     required this.venueCtrl,
     required this.capacityCtrl,
+    required this.descCtrl,
     required this.selectedDate,
     required this.onDateSelected,
     required this.pickedImage,
@@ -327,6 +329,41 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
                       FilteringTextInputFormatter.digitsOnly,
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  _labelOptional('Description'),
+                  TextFormField(
+                    controller: widget.descCtrl,
+                    maxLines: 4,
+                    maxLength: 2000,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: kTextMain,
+                    ),
+                    decoration: InputDecoration(
+                      hintText:
+                      'e.g. Join us for a day of talks, workshops and networking...',
+                      hintStyle: const TextStyle(
+                        color: kTextSub,
+                        fontSize: 13,
+                      ),
+                      contentPadding: const EdgeInsets.all(14),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: kBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: kBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                        const BorderSide(color: kNavy, width: 1.5),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -356,6 +393,33 @@ class _EventBasicInfoCardState extends State<EventBasicInfoCard> {
             style: TextStyle(
               color: Colors.red,
               fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Creates a label for an optional form field (no asterisk).
+  Widget _labelOptional(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: kTextMain,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
+            'optional',
+            style: TextStyle(
+              fontSize: 11,
+              color: kTextSub,
             ),
           ),
         ],
