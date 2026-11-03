@@ -729,7 +729,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                      strokeWidth: 3,
                       color: Colors.white,
                     ),
                   )
