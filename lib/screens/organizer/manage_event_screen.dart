@@ -148,14 +148,14 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
                   child: imageUrl.isEmpty
                       ? _imagePlaceholder()
                       : Image.network(
-                    imageUrl,
-                    width: 90,
-                    height: 90,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                    loadingBuilder: (_, child, p) =>
-                    p == null ? child : _imagePlaceholder(),
-                  ),
+                          imageUrl,
+                          width: 90,
+                          height: 90,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                          loadingBuilder: (_, child, p) =>
+                              p == null ? child : _imagePlaceholder(),
+                        ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -178,8 +178,10 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      _infoRow(Icons.calendar_today_outlined,
-                          '$date${startTime.isNotEmpty ? '  •  $startTime' : ''}'),
+                      _infoRow(
+                        Icons.calendar_today_outlined,
+                        '$date${startTime.isNotEmpty ? '  •  $startTime' : ''}',
+                      ),
                       const SizedBox(height: 4),
                       _infoRow(Icons.location_on_outlined, venue),
                       const SizedBox(height: 4),
@@ -196,6 +198,8 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
 
           // ── Management menu
           Container(
+            clipBehavior:
+                Clip.antiAlias, // FIX: keeps ink inside rounded corners
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -207,60 +211,67 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
                 ),
               ],
             ),
-            child: Column(
-              children: [
-                // Edit Event — fully implemented
-                _MenuItem(
-                  icon: Icons.edit_outlined,
-                  title: 'Edit Event',
-                  subtitle: 'Update event details',
-                  onTap: isCancelled
-                      ? null
-                      : () => context.go(
-                      '/organizer/event/${widget.eventId}/edit'),
-                ),
-                _divider(),
-                // Placeholder items — implementation comes in later tasks
-                _MenuItem(
-                  icon: Icons.people_alt_outlined,
-                  title: 'Guest List & Payments',
-                  subtitle: 'View registered users',
-                  onTap: () => context.go(
-                      '/organizer/event/${widget.eventId}/guests'),
-                ),
-                _divider(),
-                _MenuItem(
-                  icon: Icons.sell_outlined,
-                  title: 'Pricing & Add-ons',
-                  subtitle: 'Manage roles and add-ons',
-                  onTap: isCancelled
-                      ? null
-                      : () => context.go(
-                      '/organizer/event/${widget.eventId}/pricing'),
-                ),
-                _divider(),
-                _MenuItem(
-                  icon: Icons.bar_chart_outlined,
-                  title: 'Analytics',
-                  subtitle: 'View event statistics',
-                  onTap: () => context.go(
-                      '/organizer/event/${widget.eventId}/analytics'),
-                ),
-                _divider(),
-                _MenuItem(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notify Attendees',
-                  subtitle: 'Send messages / notifications',
-                  onTap: () => _comingSoon(context),
-                ),
-                _divider(),
-                _MenuItem(
-                  icon: Icons.supervised_user_circle_outlined,
-                  title: 'Co-organizers',
-                  subtitle: 'Manage co-organizers',
-                  onTap: () => _comingSoon(context),
-                ),
-              ],
+            child: Material(
+              // FIX: nearest Material for the ListTiles, so ink is visible
+              color: Colors.transparent,
+              child: Column(
+                children: [
+                  // Edit Event — fully implemented
+                  _MenuItem(
+                    icon: Icons.edit_outlined,
+                    title: 'Edit Event',
+                    subtitle: 'Update event details',
+                    onTap: isCancelled
+                        ? null
+                        : () => context.go(
+                            '/organizer/event/${widget.eventId}/edit',
+                          ),
+                  ),
+                  _divider(),
+                  // Placeholder items — implementation comes in later tasks
+                  _MenuItem(
+                    icon: Icons.people_alt_outlined,
+                    title: 'Guest List & Payments',
+                    subtitle: 'View registered users',
+                    onTap: () =>
+                        context.go('/organizer/event/${widget.eventId}/guests'),
+                  ),
+                  _divider(),
+                  _MenuItem(
+                    icon: Icons.sell_outlined,
+                    title: 'Pricing & Add-ons',
+                    subtitle: 'Manage roles and add-ons',
+                    onTap: isCancelled
+                        ? null
+                        : () => context.go(
+                            '/organizer/event/${widget.eventId}/pricing',
+                          ),
+                  ),
+                  _divider(),
+                  _MenuItem(
+                    icon: Icons.bar_chart_outlined,
+                    title: 'Analytics',
+                    subtitle: 'View event statistics',
+                    onTap: () => context.go(
+                      '/organizer/event/${widget.eventId}/analytics',
+                    ),
+                  ),
+                  _divider(),
+                  _MenuItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notify Attendees',
+                    subtitle: 'Send messages / notifications',
+                    onTap: () => _comingSoon(context),
+                  ),
+                  _divider(),
+                  _MenuItem(
+                    icon: Icons.supervised_user_circle_outlined,
+                    title: 'Co-organizers',
+                    subtitle: 'Manage co-organizers',
+                    onTap: () => _comingSoon(context),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -335,7 +346,7 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
         title: const Text('Cancel Event?'),
         content: const Text(
           'Cancelling this event will notify all registered participants. '
-              'This action cannot be undone.',
+          'This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -374,15 +385,27 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _NavItem(icon: Icons.home_rounded, label: 'Home',
-                onTap: () => context.go('/organizer/home')),
-            _NavItem(icon: Icons.calendar_month_outlined, label: 'My Events',
-                onTap: () => context.go('/organizer/my-events')),
+            _NavItem(
+              icon: Icons.home_rounded,
+              label: 'Home',
+              onTap: () => context.go('/organizer/home'),
+            ),
+            _NavItem(
+              icon: Icons.calendar_month_outlined,
+              label: 'My Events',
+              onTap: () => context.go('/organizer/my-events'),
+            ),
             const SizedBox(width: 48),
-            _NavItem(icon: Icons.bar_chart_rounded, label: 'Analytics',
-                onTap: () => context.go('/organizer/analytics')),
-            _NavItem(icon: Icons.person_outline_rounded, label: 'Profile',
-                onTap: () => context.go('/organizer/profile')),
+            _NavItem(
+              icon: Icons.bar_chart_rounded,
+              label: 'Analytics',
+              onTap: () => context.go('/organizer/analytics'),
+            ),
+            _NavItem(
+              icon: Icons.person_outline_rounded,
+              label: 'Profile',
+              onTap: () => context.go('/organizer/profile'),
+            ),
           ],
         ),
       ),
