@@ -67,7 +67,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
     super.dispose();
   }
 
-  // Fetches events, including each event's own image URL.
+  // Fetches ALL events so the home screen shows a complete browse list.
   Future<void> _loadEvents() async {
     try {
       final data = await Supabase.instance.client
@@ -75,7 +75,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
           .select()
           .order('event_date', ascending: true);
 
-      final events = data.map<_EventItem>((event) {
+      final events = (data as List).map<_EventItem>((event) {
         return _EventItem(
           eventId: (event['event_id'] ?? '').toString(),
           title: (event['name'] ?? '').toString(),
@@ -83,16 +83,12 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
           location: (event['venue'] ?? '').toString(),
           status: (event['status'] ?? 'unknown').toString(),
           registered: 0,
-          capacity:
-          (event['capacity'] as num?)?.toInt() ?? 0,
-
-          // Uses the URL saved in this event's image_url column.
+          capacity: (event['capacity'] as num?)?.toInt() ?? 0,
           imageUrl: (event['image_url'] ?? '').toString().trim(),
         );
       }).toList();
 
       if (!mounted) return;
-
       setState(() {
         _events = events;
         _filteredEvents = events;
@@ -100,11 +96,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
+      setState(() => _isLoading = false);
       debugPrint('Error loading events: $e');
     }
   }
