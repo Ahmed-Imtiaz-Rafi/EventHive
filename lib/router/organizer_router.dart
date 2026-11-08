@@ -1,9 +1,12 @@
 import 'package:event_hive/screens/organizer/analytics_screen.dart';
+import 'package:event_hive/screens/organizer/co_organizers_screen.dart';
 import 'package:event_hive/screens/organizer/create_event_screen.dart';
 import 'package:event_hive/screens/organizer/edit_event_screen.dart';
+import 'package:event_hive/screens/organizer/event_detail_screen.dart';
 import 'package:event_hive/screens/organizer/guest_list_screen.dart';
 import 'package:event_hive/screens/organizer/manage_event_screen.dart';
 import 'package:event_hive/screens/organizer/my_events_screen.dart';
+import 'package:event_hive/screens/organizer/notify_attendees_screen.dart';
 import 'package:event_hive/screens/organizer/organizer_home_screen.dart';
 import 'package:event_hive/screens/organizer/organizer_profile_screen.dart';
 import 'package:event_hive/screens/organizer/pricing_addons_screen.dart';
@@ -32,10 +35,33 @@ final List<RouteBase> organizerRoutes = [
     builder: (context, state) => const OrganizerProfileScreen(),
   ),
   GoRoute(
+    path: '/organizer/event-detail/:eventId',
+    builder: (context, state) {
+      final eventId = state.pathParameters['eventId']!;
+      return EventDetailScreen(eventId: eventId);
+    },
+  ),
+  GoRoute(
     path: '/organizer/event/:eventId',
     builder: (context, state) {
       final eventId = state.pathParameters['eventId']!;
       return ManageEventScreen(eventId: eventId);
+    },
+  ),
+  // Screen 8 — Notify Attendees
+  GoRoute(
+    path: '/organizer/event/:eventId/notify',
+    builder: (context, state) {
+      final eventId = state.pathParameters['eventId']!;
+      return NotifyAttendeesScreen(eventId: eventId);
+    },
+  ),
+  // Screen 9 — Co-organizers
+  GoRoute(
+    path: '/organizer/event/:eventId/co-organizers',
+    builder: (context, state) {
+      final eventId = state.pathParameters['eventId']!;
+      return CoOrganizersScreen(eventId: eventId);
     },
   ),
   GoRoute(
