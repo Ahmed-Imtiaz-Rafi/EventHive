@@ -268,14 +268,18 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
                   icon: Icons.notifications_outlined,
                   title: 'Notify Attendees',
                   subtitle: 'Send messages / notifications',
-                  onTap: () => _comingSoon(context),
+                  onTap: isCancelled
+                      ? null
+                      : () => context.go(
+                      '/organizer/event/${widget.eventId}/notify'),
                 ),
                 _divider(),
                 _MenuItem(
                   icon: Icons.supervised_user_circle_outlined,
                   title: 'Co-organizers',
                   subtitle: 'Manage co-organizers',
-                  onTap: () => _comingSoon(context),
+                  onTap: () => context.go(
+                      '/organizer/event/${widget.eventId}/co-organizers'),
                 ),
               ],
             ),
@@ -337,43 +341,54 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
     child: const Icon(Icons.image_outlined, color: Colors.grey),
   );
 
-  void _comingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('This feature is coming soon.')),
-    );
+  void _show(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  /// Shows a confirmation dialog before cancelling.
-  /// Cancel Event implementation will be added in a future task.
+  /// Calls the cancel_event() RPC then reloads the event.
+  Future<void> _cancelEvent(BuildContext ctx) async {
+    Navigator.pop(ctx); // close dialog
+    try {
+      await _supabase.rpc('cancel_event', params: {'p_event_id': widget.eventId});
+      _show('Event cancelled.');
+      _loadEvent(); // refresh to show new status
+    } catch (e) {
+      _show('Could not cancel: $e');
+    }
+  }
+
+  /// Shows a confirmation dialog before cancelling (Screen 10).
   void _confirmCancel(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancel Event?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+          SizedBox(width: 8),
+          Text('Cancel Event?'),
+        ]),
         content: const Text(
-          'Cancelling this event will notify all registered participants. '
-              'This action cannot be undone.',
+          'This action will mark the event as cancelled. '
+              'Registrations and payment history will be kept for reference.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Go Back'),
+            child: const Text('No, Go Back'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              // TODO: call cancel_event() RPC in a future task
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Cancel Event will be implemented soon.'),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text(
-              'Cancel Event',
-              style: TextStyle(color: Colors.white),
+            onPressed: () => _cancelEvent(ctx),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
+            child: const Text('Yes, Cancel Event',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
