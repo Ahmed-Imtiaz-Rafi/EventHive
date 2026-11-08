@@ -89,7 +89,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           .eq('event_id', widget.eventId!)
           : [];
 
-      final regIdSet = (regIds as List)
+      final regIdSet = (regIds)
           .map((r) => r['registration_id'].toString())
           .toSet();
 
