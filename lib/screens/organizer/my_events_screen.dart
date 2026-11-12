@@ -125,7 +125,11 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const Icon(
+                Icons.error_outline,
+                color: Colors.redAccent,
+                size: 48,
+              ),
               const SizedBox(height: 12),
               Text(
                 'Could not load events.\n$_error',
@@ -136,7 +140,10 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
               ElevatedButton(
                 onPressed: _loadEvents,
                 style: ElevatedButton.styleFrom(backgroundColor: kNavy),
-                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -153,7 +160,11 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             const SizedBox(height: 16),
             const Text(
               'No events yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kNavy),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: kNavy,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -271,18 +282,20 @@ class _EventCard extends StatelessWidget {
           children: [
             // Event thumbnail
             ClipRRect(
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(16),
+              ),
               child: imageUrl.isEmpty
                   ? _placeholder()
                   : Image.network(
-                imageUrl,
-                width: 90,
-                height: 110,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _placeholder(),
-                loadingBuilder: (_, child, progress) =>
-                progress == null ? child : _placeholder(),
-              ),
+                      imageUrl,
+                      width: 90,
+                      height: 110,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _placeholder(),
+                      loadingBuilder: (_, child, progress) =>
+                          progress == null ? child : _placeholder(),
+                    ),
             ),
             // Event details
             Expanded(
