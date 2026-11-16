@@ -137,6 +137,11 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
     final capacity = (event['capacity'] as num?)?.toInt() ?? 0;
     final status = (event['status'] ?? 'active').toString();
     final isCancelled = status == 'cancelled';
+    // Past events (date before today) also cannot be cancelled or edited
+    final eventDateStr = (event['event_date'] ?? '').toString();
+    final isPast = eventDateStr.isNotEmpty &&
+        DateTime.tryParse(eventDateStr)?.isBefore(DateTime.now()) == true;
+    final isLocked = isCancelled || isPast;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -191,7 +196,7 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
                               ),
                             ),
                           ),
-                          StatusBadge(status: status),
+                          StatusBadge(status: status, eventDate: date),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -212,76 +217,73 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
           const SizedBox(height: 16),
 
           // ── Management menu
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
+          // Material wrapper is required so ListTile ink splashes are visible
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            elevation: 2,
+            shadowColor: Colors.black.withValues(alpha: 0.06),
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Edit Event — fully implemented
-                _MenuItem(
-                  icon: Icons.edit_outlined,
-                  title: 'Edit Event',
-                  subtitle: 'Update event details',
-                  onTap: isCancelled
-                      ? null
-                      : () => context.go(
-                      '/organizer/event/${widget.eventId}/edit'),
-                ),
-                _divider(),
-                // Placeholder items — implementation comes in later tasks
-                _MenuItem(
-                  icon: Icons.people_alt_outlined,
-                  title: 'Guest List & Payments',
-                  subtitle: 'View registered users',
-                  onTap: () => context.go(
-                      '/organizer/event/${widget.eventId}/guests'),
-                ),
-                _divider(),
-                _MenuItem(
-                  icon: Icons.sell_outlined,
-                  title: 'Pricing & Add-ons',
-                  subtitle: 'Manage roles and add-ons',
-                  onTap: isCancelled
-                      ? null
-                      : () => context.go(
-                      '/organizer/event/${widget.eventId}/pricing'),
-                ),
-                _divider(),
-                _MenuItem(
-                  icon: Icons.bar_chart_outlined,
-                  title: 'Analytics',
-                  subtitle: 'View event statistics',
-                  onTap: () => context.go(
-                      '/organizer/event/${widget.eventId}/analytics'),
-                ),
-                _divider(),
-                _MenuItem(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notify Attendees',
-                  subtitle: 'Send messages / notifications',
-                  onTap: isCancelled
-                      ? null
-                      : () => context.go(
-                      '/organizer/event/${widget.eventId}/notify'),
-                ),
-                _divider(),
-                _MenuItem(
-                  icon: Icons.supervised_user_circle_outlined,
-                  title: 'Co-organizers',
-                  subtitle: 'Manage co-organizers',
-                  onTap: () => context.go(
-                      '/organizer/event/${widget.eventId}/co-organizers'),
-                ),
-              ],
+              child: Column(
+                children: [
+                  // Edit Event — fully implemented
+                  _MenuItem(
+                    icon: Icons.edit_outlined,
+                    title: 'Edit Event',
+                    subtitle: 'Update event details',
+                    onTap: isLocked
+                        ? null
+                        : () => context.go(
+                        '/organizer/event/${widget.eventId}/edit'),
+                  ),
+                  _divider(),
+                  // Placeholder items — implementation comes in later tasks
+                  _MenuItem(
+                    icon: Icons.people_alt_outlined,
+                    title: 'Guest List & Payments',
+                    subtitle: 'View registered users',
+                    onTap: () => context.go(
+                        '/organizer/event/${widget.eventId}/guests'),
+                  ),
+                  _divider(),
+                  _MenuItem(
+                    icon: Icons.sell_outlined,
+                    title: 'Pricing & Add-ons',
+                    subtitle: 'Manage roles and add-ons',
+                    onTap: isLocked
+                        ? null
+                        : () => context.go(
+                        '/organizer/event/${widget.eventId}/pricing'),
+                  ),
+                  _divider(),
+                  _MenuItem(
+                    icon: Icons.bar_chart_outlined,
+                    title: 'Analytics',
+                    subtitle: 'View event statistics',
+                    onTap: () => context.go(
+                        '/organizer/event/${widget.eventId}/analytics'),
+                  ),
+                  _divider(),
+                  _MenuItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notify Attendees',
+                    subtitle: 'Send messages / notifications',
+                    onTap: isLocked
+                        ? null
+                        : () => context.go(
+                        '/organizer/event/${widget.eventId}/notify'),
+                  ),
+                  _divider(),
+                  _MenuItem(
+                    icon: Icons.supervised_user_circle_outlined,
+                    title: 'Co-organizers',
+                    subtitle: 'Manage co-organizers',
+                    onTap: () => context.go(
+                        '/organizer/event/${widget.eventId}/co-organizers'),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -290,12 +292,15 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: isCancelled ? null : () => _confirmCancel(context),
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              onPressed: isLocked ? null : () => _confirmCancel(context),
+              icon: Icon(
+                Icons.delete_outline,
+                color: isLocked ? kTextSub : Colors.redAccent,
+              ),
               label: Text(
-                isCancelled ? 'Event Cancelled' : 'Cancel Event',
-                style: const TextStyle(
-                  color: Colors.redAccent,
+                isCancelled ? 'Event Cancelled' : isPast ? 'Event Ended' : 'Cancel Event',
+                style: TextStyle(
+                  color: isLocked ? kTextSub : Colors.redAccent,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -356,7 +361,17 @@ class _ManageEventScreenState extends State<ManageEventScreen> {
       _show('Event cancelled.');
       _loadEvent(); // refresh to show new status
     } catch (e) {
-      _show('Could not cancel: $e');
+      final msg = e.toString();
+      // Map database error prefixes to readable messages
+      if (msg.contains('EVENT_CLOSED')) {
+        _show('This event has already passed and cannot be cancelled.');
+      } else if (msg.contains('EVENT_NOT_FOUND')) {
+        _show('Event not found.');
+      } else if (msg.contains('NOT_EVENT_ORGANIZER')) {
+        _show('You do not have permission to cancel this event.');
+      } else {
+        _show('Could not cancel: $msg');
+      }
     }
   }
 

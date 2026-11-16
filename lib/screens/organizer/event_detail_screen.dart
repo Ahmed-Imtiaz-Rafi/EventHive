@@ -308,21 +308,24 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   Widget _infoRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 11),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: kNavy),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: kTextSub,
-              fontWeight: FontWeight.w500,
+          Icon(icon, size: 17, color: kNavy),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: kTextSub,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-          const Spacer(),
-          Flexible(
+          Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
