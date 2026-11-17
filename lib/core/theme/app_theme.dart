@@ -8,6 +8,8 @@ const kSurface = Color(0xFFFFFFFF); // Input fields, white areas
 const kTextMain = Color(0xFF152037); // Primary text
 const kTextSub = Color(0xFF8A8A8A); // Subtitle / hint text
 const kBorder = Color(0xFFE0D9CF); // Input border
+const kDanger = Color(0xFFB04A38); // Cancel / destructive buttons and warnings
+const kDangerSurface = Color(0xFFF4DAD6); // Warning banner background
 
 ThemeData buildAppTheme() => ThemeData(
   useMaterial3: true,

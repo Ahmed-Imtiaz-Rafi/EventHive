@@ -134,7 +134,11 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const Icon(
+                Icons.error_outline,
+                color: Colors.redAccent,
+                size: 48,
+              ),
               const SizedBox(height: 12),
               Text('Could not load events.\n$_error',
                   textAlign: TextAlign.center,
@@ -345,14 +349,14 @@ class _EventCard extends StatelessWidget {
               child: imageUrl.isEmpty
                   ? _placeholder()
                   : Image.network(
-                imageUrl,
-                width: 90,
-                height: 110,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _placeholder(),
-                loadingBuilder: (_, child, progress) =>
-                progress == null ? child : _placeholder(),
-              ),
+                      imageUrl,
+                      width: 90,
+                      height: 110,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _placeholder(),
+                      loadingBuilder: (_, child, progress) =>
+                          progress == null ? child : _placeholder(),
+                    ),
             ),
             // Details
             Expanded(
