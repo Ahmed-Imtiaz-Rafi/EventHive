@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Holds event data fetched from Supabase.
+/// Holds event data fetched from Supabase.
 class _EventItem {
   final String title;
   final String date;
@@ -26,6 +26,11 @@ class _EventItem {
     required this.imageUrl,
     required this.eventId,
   });
+
+  /// Calculates the remaining seats without allowing a negative value.
+  int get availableSeats {
+    return (capacity - registered).clamp(0, capacity);
+  }
 }
 
 class OrganizerHomeScreen extends StatefulWidget {
@@ -58,6 +63,8 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
     super.initState();
 
     _searchCtrl.addListener(_onSearchChanged);
+
+    // Loads all events when the home screen opens.
     _loadEvents();
   }
 
@@ -67,11 +74,14 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
     super.dispose();
   }
 
-  // Fetches ALL events so the home screen shows a complete browse list.
+  /// Fetches all events and their actual registration counts.
+  ///
+  /// event_overview is used instead of seat_holder because
+  /// seat_holder is an internal database view.
   Future<void> _loadEvents() async {
     try {
       final data = await Supabase.instance.client
-          .from('events')
+          .from('event_overview')
           .select()
           .order('event_date', ascending: true);
 
@@ -82,13 +92,22 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
           date: (event['event_date'] ?? '').toString(),
           location: (event['venue'] ?? '').toString(),
           status: (event['status'] ?? 'unknown').toString(),
-          registered: 0,
-          capacity: (event['capacity'] as num?)?.toInt() ?? 0,
-          imageUrl: (event['image_url'] ?? '').toString().trim(),
+
+          // Uses the real count calculated by event_overview.
+          registered:
+          (event['registered_count'] as num?)?.toInt() ?? 0,
+
+          capacity:
+          (event['capacity'] as num?)?.toInt() ?? 0,
+
+          // Uses each event's own image URL.
+          imageUrl:
+          (event['image_url'] ?? '').toString().trim(),
         );
       }).toList();
 
       if (!mounted) return;
+
       setState(() {
         _events = events;
         _filteredEvents = events;
@@ -96,25 +115,30 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
+
+      setState(() {
+        _isLoading = false;
+      });
+
       debugPrint('Error loading events: $e');
     }
   }
 
-  // Filters events whenever the user types in the search field.
+  /// Filters events whenever the user types in the search field.
   void _onSearchChanged() {
     final query = _searchCtrl.text.trim().toLowerCase();
 
     setState(() {
       _filteredEvents = _events
           .where(
-            (event) => event.title.toLowerCase().contains(query),
+            (event) =>
+            event.title.toLowerCase().contains(query),
       )
           .toList();
     });
   }
 
-  // Opens the screen associated with the selected navigation item.
+  /// Opens the screen associated with the selected navigation item.
   void _onTabTapped(int index) {
     setState(() => _selectedTab = index);
 
@@ -122,12 +146,15 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
       case 0:
         context.go('/organizer/home');
         break;
+
       case 1:
         context.go('/organizer/my-events');
         break;
+
       case 3:
         context.go('/organizer/analytics');
         break;
+
       case 4:
         context.go('/organizer/profile');
         break;
@@ -145,7 +172,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
             child: _buildHeader(context),
           ),
 
-          // White section containing the event list.
+          // White section containing all events.
           SliverToBoxAdapter(
             child: Container(
               decoration: const BoxDecoration(
@@ -159,12 +186,14 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
           ),
         ],
       ),
+
       bottomNavigationBar: _buildBottomNav(),
 
       // Opens the Create Event screen.
       floatingActionButton: FloatingActionButton(
-        onPressed: () =>
-            context.go('/organizer/create-event'),
+        onPressed: () {
+          context.go('/organizer/create-event');
+        },
         backgroundColor: kAmber,
         elevation: 4,
         shape: RoundedRectangleBorder(
@@ -176,12 +205,13 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
           size: 28,
         ),
       ),
+
       floatingActionButtonLocation:
       FloatingActionButtonLocation.centerDocked,
     );
   }
 
-  // Builds the top navy header.
+  /// Builds the top navy header.
   Widget _buildHeader(BuildContext context) {
     return Container(
       color: kNavy,
@@ -258,14 +288,15 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
               ),
             ],
           ),
+
           const SizedBox(height: 14),
 
-          // Search events by title.
+          // Search all events by title.
           TextField(
             controller: _searchCtrl,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: 'Search your events...',
+              hintText: 'Search events...',
               hintStyle: const TextStyle(
                 color: Colors.white54,
                 fontSize: 14,
@@ -287,6 +318,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
               ),
             ),
           ),
+
           const SizedBox(height: 12),
 
           // Opens Create Event screen.
@@ -324,7 +356,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
     );
   }
 
-  // Builds the My Events section.
+  /// Builds the All Events section.
   Widget _buildEventsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,7 +367,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'My Events',
+                'All Events',
                 style: TextStyle(
                   color: kNavy,
                   fontSize: 17,
@@ -347,7 +379,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
                   context.go('/organizer/my-events');
                 },
                 child: const Text(
-                  'View All',
+                  'My Events',
                   style: TextStyle(
                     color: kNavy,
                     fontWeight: FontWeight.w600,
@@ -379,7 +411,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
             ),
           )
 
-        // Displays events fetched from Supabase.
+        // Displays all events fetched from Supabase.
         else
           ...List.generate(_filteredEvents.length, (index) {
             final event = _filteredEvents[index];
@@ -390,10 +422,11 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
                   event: event,
                   onTap: () {
                     context.go(
-                      '/organizer/event/${event.eventId}',
+                      '/organizer/event-detail/${event.eventId}',
                     );
                   },
                 ),
+
                 if (index < _filteredEvents.length - 1)
                   const Divider(
                     height: 1,
@@ -409,7 +442,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
     );
   }
 
-  // Builds the bottom navigation bar.
+  /// Builds the bottom navigation bar.
   Widget _buildBottomNav() {
     return BottomAppBar(
       color: Colors.white,
@@ -427,6 +460,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
               selected: _selectedTab == 0,
               onTap: () => _onTabTapped(0),
             ),
+
             _NavItem(
               icon: Icons.calendar_month_outlined,
               label: 'My Events',
@@ -443,6 +477,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
               selected: _selectedTab == 3,
               onTap: () => _onTabTapped(3),
             ),
+
             _NavItem(
               icon: Icons.person_outline_rounded,
               label: 'Profile',
@@ -456,7 +491,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
   }
 }
 
-// Displays one event and its image.
+/// Displays one event and its image.
 class _EventCard extends StatelessWidget {
   final _EventItem event;
   final VoidCallback onTap;
@@ -476,7 +511,7 @@ class _EventCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Loads this event's image from its own image URL.
+            // Loads this event's own image URL.
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: event.imageUrl.isEmpty
@@ -504,6 +539,7 @@ class _EventCard extends StatelessWidget {
                 },
               ),
             ),
+
             const SizedBox(width: 12),
 
             // Displays the event information.
@@ -530,7 +566,9 @@ class _EventCard extends StatelessWidget {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 3),
+
                   Row(
                     children: [
                       Text(
@@ -559,14 +597,33 @@ class _EventCard extends StatelessWidget {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 6),
+
                   StatusBadge(status: event.status),
+
                   const SizedBox(height: 5),
+
+                  // Displays actual registration count.
                   Text(
                     '${event.registered} / ${event.capacity} registered',
                     style: const TextStyle(
                       color: kTextSub,
                       fontSize: 12,
+                    ),
+                  ),
+
+                  const SizedBox(height: 3),
+
+                  // Displays remaining seats.
+                  Text(
+                    '${event.availableSeats} seats available',
+                    style: TextStyle(
+                      color: event.availableSeats == 0
+                          ? Colors.red
+                          : kTextSub,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -578,7 +635,7 @@ class _EventCard extends StatelessWidget {
     );
   }
 
-  // Shows a placeholder when an image is missing or unavailable.
+  /// Shows a placeholder when an image is missing or unavailable.
   Widget _imagePlaceholder() {
     return Container(
       width: 78,
@@ -592,7 +649,7 @@ class _EventCard extends StatelessWidget {
   }
 }
 
-// One item in the bottom navigation bar.
+/// One item in the bottom navigation bar.
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;

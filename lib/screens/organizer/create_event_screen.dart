@@ -658,6 +658,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         backgroundColor: Colors.white,
         foregroundColor: kNavy,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: kNavy),
+          onPressed: () => context.go('/organizer/home'),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
