@@ -6,6 +6,7 @@
 /// Saves all changes through the update_event() RPC, which is the only
 /// permitted write path for event data per the schema's RLS rules.
 /// Navigated to from the Event Details / Manage screen (manage_event_screen).
+library;
 
 import 'package:event_hive/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -62,14 +63,30 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
   /// and the list of available role names from registration_roles.
   /// We need the full event row because update_event() requires all fields.
   Future<void> _loadData() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       // Fetch everything we need in parallel
       final results = await Future.wait<dynamic>([
-        _supabase.from('events').select().eq('event_id', widget.eventId).single(),
-        _supabase.from('event_role_price').select().eq('event_id', widget.eventId),
-        _supabase.from('event_accessories').select().eq('event_id', widget.eventId),
-        _supabase.from('registration_roles').select('role_name').order('role_name'),
+        _supabase
+            .from('events')
+            .select()
+            .eq('event_id', widget.eventId)
+            .single(),
+        _supabase
+            .from('event_role_price')
+            .select()
+            .eq('event_id', widget.eventId),
+        _supabase
+            .from('event_accessories')
+            .select()
+            .eq('event_id', widget.eventId),
+        _supabase
+            .from('registration_roles')
+            .select('role_name')
+            .order('role_name'),
       ]);
 
       if (!mounted) return;
@@ -78,10 +95,12 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
 
         // Map role rows into simple {role_name, price} maps
         _roles = (results[1] as List)
-            .map((r) => {
-          'role_name': r['role_name'].toString(),
-          'price': (r['price'] as num?)?.toDouble() ?? 0.0,
-        })
+            .map(
+              (r) => {
+                'role_name': r['role_name'].toString(),
+                'price': (r['price'] as num?)?.toDouble() ?? 0.0,
+              },
+            )
             .toList();
 
         // Map accessory rows, deduplicating by name (one entry per add-on name)
@@ -105,7 +124,10 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -138,7 +160,9 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
           .from('event_category_map')
           .select('category_id')
           .eq('event_id', widget.eventId);
-      final catIds = (catRows as List).map((r) => r['category_id'] as int).toList();
+      final catIds = (catRows as List)
+          .map((r) => r['category_id'] as int)
+          .toList();
 
       if (catIds.isEmpty) {
         _msg('This event has no categories set. Please edit the event first.');
@@ -153,25 +177,30 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
 
       // Accessories: size defaults to 'one_size' since this screen doesn't manage sizes
       final accessories = _addons
-          .map((a) => {'name': a['name'], 'size': 'one_size', 'price': a['price']})
+          .map(
+            (a) => {'name': a['name'], 'size': 'one_size', 'price': a['price']},
+          )
           .toList();
 
-      await _supabase.rpc('update_event', params: {
-        'p_event_id'      : widget.eventId,
-        'p_name'          : ev['name'],
-        'p_event_date'    : ev['event_date'],
-        'p_venue'         : ev['venue'],
-        'p_capacity'      : ev['capacity'],
-        'p_category_ids'  : catIds,
-        'p_club_id'       : clubId,
-        'p_description'   : ev['description'],
-        'p_start_time'    : ev['start_time'],
-        'p_end_time'      : ev['end_time'],
-        'p_image_url'     : ev['image_url'],
-        'p_department_ids': <int>[],
-        'p_accessories'   : accessories,
-        'p_role_prices'   : rolePrices,
-      });
+      await _supabase.rpc(
+        'update_event',
+        params: {
+          'p_event_id': widget.eventId,
+          'p_name': ev['name'],
+          'p_event_date': ev['event_date'],
+          'p_venue': ev['venue'],
+          'p_capacity': ev['capacity'],
+          'p_category_ids': catIds,
+          'p_club_id': clubId,
+          'p_description': ev['description'],
+          'p_start_time': ev['start_time'],
+          'p_end_time': ev['end_time'],
+          'p_image_url': ev['image_url'],
+          'p_department_ids': <int>[],
+          'p_accessories': accessories,
+          'p_role_prices': rolePrices,
+        },
+      );
 
       if (!mounted) return;
       _msg('Pricing saved successfully!');
@@ -204,10 +233,12 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
 
     // Find the default selected role — skip ones already added when adding new
     final usedNames = _roles.map((r) => r['role_name'] as String).toSet();
-    String selectedRole = existing?['role_name'] as String? ??
+    String selectedRole =
+        existing?['role_name'] as String? ??
         _availableRoleNames.firstWhere(
-              (n) => !usedNames.contains(n),
-          orElse: () => _availableRoleNames.isNotEmpty ? _availableRoleNames.first : '',
+          (n) => !usedNames.contains(n),
+          orElse: () =>
+              _availableRoleNames.isNotEmpty ? _availableRoleNames.first : '',
         );
 
     if (selectedRole.isEmpty) {
@@ -225,7 +256,9 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
 
         return StatefulBuilder(
           builder: (context, set) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: Text(
               existing == null ? 'Add Role' : 'Edit Role',
               style: const TextStyle(color: kNavy, fontWeight: FontWeight.bold),
@@ -234,15 +267,15 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: dialogRole,
+                  initialValue: dialogRole,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Role'),
                   // Disable role name change when editing
                   onChanged: existing != null
                       ? null
                       : (v) {
-                    if (v != null) set(() => dialogRole = v);
-                  },
+                          if (v != null) set(() => dialogRole = v);
+                        },
                   items: _availableRoleNames
                       .map((n) => DropdownMenuItem(value: n, child: Text(n)))
                       .toList(),
@@ -250,9 +283,13 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
                 const SizedBox(height: 12),
                 TextField(
                   controller: priceCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}'),
+                    ),
                   ],
                   decoration: const InputDecoration(
                     labelText: 'Price',
@@ -274,7 +311,10 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
                   // Use dialogRole — this is the correctly updated value
                   Navigator.pop(ctx, {'role_name': dialogRole, 'price': price});
                 },
-                child: const Text('Save', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -329,7 +369,9 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
             const SizedBox(height: 12),
             TextField(
               controller: priceCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
               ],
@@ -380,9 +422,14 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remove Role?'),
-        content: Text('Remove "${_roles[index]['role_name']}" from this event?'),
+        content: Text(
+          'Remove "${_roles[index]['role_name']}" from this event?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () {
@@ -404,7 +451,10 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
         title: const Text('Remove Add-on?'),
         content: Text('Remove "${_addons[index]['name']}" from this event?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () {
@@ -450,12 +500,9 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
           : _error != null
           ? _buildError()
           : TabBarView(
-        controller: _tabCtrl,
-        children: [
-          _buildRolesTab(),
-          _buildAddonsTab(),
-        ],
-      ),
+              controller: _tabCtrl,
+              children: [_buildRolesTab(), _buildAddonsTab()],
+            ),
       bottomNavigationBar: _loading || _error != null ? null : _buildSaveBar(),
     );
   }
@@ -466,8 +513,11 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
       children: [
         const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
         const SizedBox(height: 12),
-        Text(_error ?? '', textAlign: TextAlign.center,
-            style: const TextStyle(color: kTextSub)),
+        Text(
+          _error ?? '',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: kTextSub),
+        ),
         const SizedBox(height: 16),
         ElevatedButton(
           onPressed: _loadData,
@@ -486,21 +536,31 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
         // Header row with title and Add Role button
         Row(
           children: [
-            const Text('Event Roles',
-                style: TextStyle(
-                    color: kNavy, fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Event Roles',
+              style: TextStyle(
+                color: kNavy,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
             const Spacer(),
             OutlinedButton.icon(
               onPressed: () => _showRoleDialog(),
               icon: const Icon(Icons.add, size: 16, color: kNavy),
-              label: const Text('Add Role',
-                  style: TextStyle(color: kNavy, fontSize: 13)),
+              label: const Text(
+                'Add Role',
+                style: TextStyle(color: kNavy, fontSize: 13),
+              ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: kNavy),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)),
-                padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
               ),
             ),
           ],
@@ -511,8 +571,10 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 32),
             child: Center(
-              child: Text('No roles added yet. Tap "+ Add Role" to start.',
-                  style: TextStyle(color: kTextSub)),
+              child: Text(
+                'No roles added yet. Tap "+ Add Role" to start.',
+                style: TextStyle(color: kTextSub),
+              ),
             ),
           )
         else
@@ -522,9 +584,10 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2))
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
             child: Column(
@@ -538,42 +601,61 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
-                          const Icon(Icons.person_outline,
-                              size: 18, color: kTextSub),
+                          const Icon(
+                            Icons.person_outline,
+                            size: 18,
+                            color: kTextSub,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Text(role['role_name'].toString(),
-                                style: const TextStyle(
-                                    color: kTextMain, fontSize: 14)),
-                          ),
-                          Text(priceStr,
+                            child: Text(
+                              role['role_name'].toString(),
                               style: const TextStyle(
-                                  color: kTextMain,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500)),
+                                color: kTextMain,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            priceStr,
+                            style: const TextStyle(
+                              color: kTextMain,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           // Edit button
                           IconButton(
                             onPressed: () => _showRoleDialog(index: i),
-                            icon: const Icon(Icons.edit_outlined,
-                                size: 18, color: kTextSub),
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: kTextSub,
+                            ),
                             constraints: const BoxConstraints(),
                             padding: const EdgeInsets.all(6),
                           ),
                           // Delete button
                           IconButton(
                             onPressed: () => _deleteRole(i),
-                            icon: const Icon(Icons.delete_outline,
-                                size: 18, color: Color(0xFFD32F2F)),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: Color(0xFFD32F2F),
+                            ),
                             constraints: const BoxConstraints(),
                             padding: const EdgeInsets.all(6),
                             style: IconButton.styleFrom(
                               backgroundColor: const Color(0xFFFFE0E0),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                           ),
                         ],
@@ -597,21 +679,31 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
       children: [
         Row(
           children: [
-            const Text('Add-ons',
-                style: TextStyle(
-                    color: kNavy, fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Add-ons',
+              style: TextStyle(
+                color: kNavy,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
             const Spacer(),
             OutlinedButton.icon(
               onPressed: () => _showAddonDialog(),
               icon: const Icon(Icons.add, size: 16, color: kNavy),
-              label: const Text('Add Add-on',
-                  style: TextStyle(color: kNavy, fontSize: 13)),
+              label: const Text(
+                'Add Add-on',
+                style: TextStyle(color: kNavy, fontSize: 13),
+              ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: kNavy),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)),
-                padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
               ),
             ),
           ],
@@ -622,8 +714,10 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 32),
             child: Center(
-              child: Text('No add-ons yet. Tap "+ Add Add-on" to start.',
-                  style: TextStyle(color: kTextSub)),
+              child: Text(
+                'No add-ons yet. Tap "+ Add Add-on" to start.',
+                style: TextStyle(color: kTextSub),
+              ),
             ),
           )
         else
@@ -633,9 +727,10 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2))
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
             child: Column(
@@ -649,40 +744,59 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
-                          const Icon(Icons.extension_outlined,
-                              size: 18, color: kTextSub),
+                          const Icon(
+                            Icons.extension_outlined,
+                            size: 18,
+                            color: kTextSub,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Text(addon['name'].toString(),
-                                style: const TextStyle(
-                                    color: kTextMain, fontSize: 14)),
-                          ),
-                          Text(priceStr,
+                            child: Text(
+                              addon['name'].toString(),
                               style: const TextStyle(
-                                  color: kTextMain,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500)),
+                                color: kTextMain,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            priceStr,
+                            style: const TextStyle(
+                              color: kTextMain,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           IconButton(
                             onPressed: () => _showAddonDialog(index: i),
-                            icon: const Icon(Icons.edit_outlined,
-                                size: 18, color: kTextSub),
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: kTextSub,
+                            ),
                             constraints: const BoxConstraints(),
                             padding: const EdgeInsets.all(6),
                           ),
                           IconButton(
                             onPressed: () => _deleteAddon(i),
-                            icon: const Icon(Icons.delete_outline,
-                                size: 18, color: Color(0xFFD32F2F)),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: Color(0xFFD32F2F),
+                            ),
                             constraints: const BoxConstraints(),
                             padding: const EdgeInsets.all(6),
                             style: IconButton.styleFrom(
                               backgroundColor: const Color(0xFFFFE0E0),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                           ),
                         ],
@@ -712,22 +826,26 @@ class _PricingAddonsScreenState extends State<PricingAddonsScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: kAmber,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: _saving
                 ? const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
-            )
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                 : const Text(
-              'Save Changes',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600),
-            ),
+                    'Save Changes',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
         ),
       ),
