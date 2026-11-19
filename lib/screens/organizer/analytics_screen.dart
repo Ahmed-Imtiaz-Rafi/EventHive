@@ -5,6 +5,7 @@
 ///   eventId = UUID  → shows real analytics for that specific event
 
 import 'package:event_hive/core/theme/app_theme.dart';
+import 'package:event_hive/widgets/common/status_badge_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -69,11 +70,31 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           .from('events')
           .select('event_id, name, event_date, status')
           .inFilter('event_id', ids)
-          .order('event_date', ascending: false);
+          .order('event_date', ascending: true);
+
+      // Sort: Ongoing (today) → Upcoming → Finished/Cancelled
+      final today = DateUtils.dateOnly(DateTime.now());
+      final sorted = List<Map<String, dynamic>>.from(rows)
+        ..sort((a, b) {
+          int _rank(Map<String, dynamic> ev) {
+            if ((ev['status'] ?? '') == 'cancelled') return 3;
+            final d = DateTime.tryParse((ev['event_date'] ?? '').toString());
+            if (d == null) return 3;
+            final day = DateUtils.dateOnly(d);
+            if (day.isAtSameMomentAs(today)) return 0; // Ongoing
+            if (day.isAfter(today)) return 1;           // Upcoming
+            return 2;                                   // Finished
+          }
+          final r = _rank(a).compareTo(_rank(b));
+          if (r != 0) return r;
+          // Within same rank, sort by date
+          return (a['event_date'] ?? '').toString()
+              .compareTo((b['event_date'] ?? '').toString());
+        });
 
       if (!mounted) return;
       setState(() {
-        _events = List<Map<String, dynamic>>.from(rows);
+        _events = sorted;
         _loading = false;
       });
     } catch (e) {
@@ -238,18 +259,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             child: Row(
               children: [
-                // Coloured dot shows active / cancelled
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: status == 'active'
-                        ? const Color(0xFF1A7A3A)
-                        : Colors.redAccent,
-                  ),
-                ),
-                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,8 +275,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.bar_chart_rounded, color: kNavy, size: 22),
-                const SizedBox(width: 4),
+                StatusBadge(status: status, eventDate: date),
+                const SizedBox(width: 8),
                 const Icon(Icons.chevron_right, color: kTextSub),
               ],
             ),

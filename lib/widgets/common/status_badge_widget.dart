@@ -1,33 +1,51 @@
 import 'package:flutter/material.dart';
 
 /// Coloured pill showing an event's effective status.
-/// Pass [eventDate] so past active events show "Ended" instead of "Active".
+///
+/// Pass [eventDate] (ISO string e.g. "2026-11-14") to get a date-aware label:
+///   Finished  — event_date is before today          (grey-brown)
+///   Ongoing   — event_date is today                 (blue)
+///   Upcoming  — event_date is in the future         (amber)
+///   Cancelled — status == 'cancelled'               (red)
+///
+/// Without [eventDate] the raw status string is shown.
 class StatusBadge extends StatelessWidget {
   final String status;
-  final String? eventDate; // ISO date string, e.g. "2026-11-14"
+  final String? eventDate;
 
   const StatusBadge({super.key, required this.status, this.eventDate});
 
-  /// Returns the label and colours based on status + date.
+  /// Returns (label, background colour, text colour).
   (String, Color, Color) get _resolved {
-    // A finished event whose DB status is still 'active'
-    final isPast = eventDate != null &&
-        DateTime.tryParse(eventDate!)
-            ?.isBefore(DateTime.now().subtract(const Duration(days: 0))) ==
-            true &&
-        status.toLowerCase() == 'active';
+    // Cancelled always wins regardless of date
+    if (status.toLowerCase() == 'cancelled') {
+      return ('Cancelled', const Color(0xFFFFE0E0), const Color(0xFFD32F2F));
+    }
 
-    if (isPast) {
-      return ('Ended', const Color(0xFFF0E6D3), const Color(0xFF8B5E00));
+    if (eventDate != null && eventDate!.isNotEmpty) {
+      final date = DateTime.tryParse(eventDate!);
+      if (date != null) {
+        final today = DateUtils.dateOnly(DateTime.now());
+        final eventDay = DateUtils.dateOnly(date);
+
+        if (eventDay.isBefore(today)) {
+          // Date has passed
+          return ('Finished', const Color(0xFFF0E6D3), const Color(0xFF8B5E00));
+        } else if (eventDay.isAtSameMomentAs(today)) {
+          // Happening today
+          return ('Ongoing', const Color(0xFFDCEEFF), const Color(0xFF1A55CC));
+        } else {
+          // Future date
+          return ('Upcoming', const Color(0xFFFFF3D4), const Color(0xFFB87800));
+        }
+      }
     }
-    switch (status.toLowerCase()) {
-      case 'active':
-        return ('Active', const Color(0xFFD4F4DD), const Color(0xFF1A7A3A));
-      case 'cancelled':
-        return ('Cancelled', const Color(0xFFFFE0E0), const Color(0xFFD32F2F));
-      default:
-        return (status, const Color(0xFFE3EEFF), const Color(0xFF1A55CC));
+
+    // Fallback: use raw status
+    if (status.toLowerCase() == 'active') {
+      return ('Active', const Color(0xFFD4F4DD), const Color(0xFF1A7A3A));
     }
+    return (status, const Color(0xFFE3EEFF), const Color(0xFF1A55CC));
   }
 
   @override

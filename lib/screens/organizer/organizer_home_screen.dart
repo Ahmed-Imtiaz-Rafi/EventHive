@@ -92,19 +92,31 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
           date: (event['event_date'] ?? '').toString(),
           location: (event['venue'] ?? '').toString(),
           status: (event['status'] ?? 'unknown').toString(),
-
-          // Uses the real count calculated by event_overview.
           registered:
           (event['registered_count'] as num?)?.toInt() ?? 0,
-
           capacity:
           (event['capacity'] as num?)?.toInt() ?? 0,
-
-          // Uses each event's own image URL.
           imageUrl:
           (event['image_url'] ?? '').toString().trim(),
         );
       }).toList();
+
+      // Sort: Ongoing (today) → Upcoming → Finished/Cancelled
+      final today = DateUtils.dateOnly(DateTime.now());
+      int _rank(_EventItem e) {
+        if (e.status == 'cancelled') return 3;
+        final d = DateTime.tryParse(e.date);
+        if (d == null) return 3;
+        final day = DateUtils.dateOnly(d);
+        if (day.isAtSameMomentAs(today)) return 0; // Ongoing
+        if (day.isAfter(today)) return 1;           // Upcoming
+        return 2;                                   // Finished
+      }
+      events.sort((a, b) {
+        final r = _rank(a).compareTo(_rank(b));
+        if (r != 0) return r;
+        return a.date.compareTo(b.date);
+      });
 
       if (!mounted) return;
 
@@ -600,7 +612,7 @@ class _EventCard extends StatelessWidget {
 
                   const SizedBox(height: 6),
 
-                  StatusBadge(status: event.status),
+                  StatusBadge(status: event.status, eventDate: event.date),
 
                   const SizedBox(height: 5),
 
